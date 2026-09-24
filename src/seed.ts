@@ -81,9 +81,12 @@ function buildDonations(now: number): { donations: Donation[]; dispatch_events: 
   return { donations, dispatch_events, records }
 }
 
+let cachedPilotData: PilotData | null = null
+
 export function buildSeed(now = Date.now()): PilotData {
+  if (cachedPilotData) return cachedPilotData
   const { donations, dispatch_events, records } = buildDonations(now)
-  return {
+  cachedPilotData = {
     donors: buildDonors(),
     recipients: buildRecipients(),
     drivers: buildDrivers(),
@@ -91,6 +94,82 @@ export function buildSeed(now = Date.now()): PilotData {
     dispatch_events,
     records,
   }
+  return cachedPilotData
+}
+
+export function addLocalDonation(donation: Omit<Donation, 'id' | 'created_at' | 'is_synthetic'>): Donation {
+  const seed = buildSeed()
+  const now = Date.now()
+  const newDonation: Donation = {
+    ...donation,
+    id: `d-${Math.random().toString(36).slice(2, 7)}`,
+    created_at: new Date(now).toISOString(),
+    is_synthetic: false,
+    recipient_id: null,
+    driver_id: null,
+  }
+  seed.donations.unshift(newDonation)
+  const donor = seed.donors.find(d => d.id === donation.donor_id)
+  seed.dispatch_events.unshift({
+    id: `e-${Math.random().toString(36).slice(2, 7)}`,
+    donation_id: newDonation.id,
+    event_type: 'posted',
+    message: `${donor?.name ?? 'Donor'} posted ${newDonation.qty_kg} kg of ${newDonation.item}.`,
+    created_at: new Date(now).toISOString(),
+  })
+  return newDonation
+}
+
+export function updateLocalDonation(id: string, action: 'match' | 'pickup' | 'deliver'): Donation | null {
+  const seed = buildSeed()
+  const donation = seed.donations.find(d => d.id === id)
+  if (!donation) return null
+
+  const now = Date.now()
+  if (action === 'match') {
+    donation.status = 'matched'
+    donation.recipient_id = seed.recipients[0]?.id ?? 'recipient-ashraya'
+    donation.driver_id = seed.drivers[0]?.id ?? 'driver-rajesh'
+    const recipient = seed.recipients.find(r => r.id === donation.recipient_id)
+    const driver = seed.drivers.find(d => d.id === donation.driver_id)
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'matched',
+      message: `Matched with ${recipient?.name} · ${driver?.name} assigned.`,
+      created_at: new Date(now).toISOString(),
+    })
+  } else if (action === 'pickup') {
+    donation.status = 'picked_up'
+    const driver = seed.drivers.find(d => d.id === donation.driver_id)
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'picked_up',
+      message: `${driver?.name ?? 'Driver'} confirmed pickup of ${donation.qty_kg} kg.`,
+      created_at: new Date(now).toISOString(),
+    })
+  } else if (action === 'deliver') {
+    donation.status = 'delivered'
+    const recipient = seed.recipients.find(r => r.id === donation.recipient_id)
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'delivered',
+      message: `Delivered ${donation.qty_kg} kg to ${recipient?.name ?? 'Shelter'} safely.`,
+      created_at: new Date(now).toISOString(),
+    })
+    seed.records.unshift({
+      id: `r-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      quantity_kg: donation.qty_kg,
+      temperature_c: donation.temp_c,
+      area: recipient?.area ?? 'Bengaluru',
+      delivered_at: new Date(now).toISOString(),
+      consume_by: donation.safe_until,
+    })
+  }
+  return donation
 }
 
 export const seedCategoryDefaults: Record<Category, { window_hours: number; temp: number | null }> = {

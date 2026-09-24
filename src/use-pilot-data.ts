@@ -25,8 +25,11 @@ export interface BackendHealth {
 
 export function usePilotData() {
   const { data, error, isLoading, mutate } = useSWR<PilotResult>(
-    isSupabaseConfigured ? ['pilot-data', 'supabase'] : null,
+    ['pilot-data', isSupabaseConfigured ? 'supabase' : 'offline'],
     async () => {
+      if (!isSupabaseConfigured || !supabase) {
+        return { data: buildSeed(), source: 'offline' as const }
+      }
       try {
         const [donors, recipients, drivers, donations, dispatch_events, records] = await Promise.all([
           query<Donor>('donors'),
@@ -36,14 +39,17 @@ export function usePilotData() {
           query<DispatchEvent>('dispatch_events'),
           query<RescueRecord>('records'),
         ])
+        if (!donors.length && !donations.length) {
+          return { data: buildSeed(), source: 'offline' as const }
+        }
         return { data: { donors, recipients, drivers, donations, dispatch_events, records }, source: 'supabase' as const }
       } catch {
         return { data: buildSeed(), source: 'offline' as const }
       }
     },
-    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 30000 },
+    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 30000, fallbackData: { data: buildSeed(), source: 'offline' } },
   )
-  return { data: data?.data, source: data?.source, error, isLoading, refresh: mutate }
+  return { data: data?.data ?? buildSeed(), source: data?.source ?? 'offline', error, isLoading, refresh: mutate }
 }
 
 export function useBackendHealth() {
