@@ -1,0 +1,7 @@
+pmOnFail: ignore
+
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - next
+  - '@supabase/functions-js@2.117.1'
+  - '@supabase/storage-js@2.117.1'

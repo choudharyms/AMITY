@@ -1,0 +1,16 @@
+import { Check, CircleDashed, Database, Globe, LockKeyhole, Map, MessageCircle, Route, ShieldCheck, Sparkles } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import type { BackendHealth } from '@/src/use-pilot-data'
+
+export function SettingsView({ source, backend }: { source?: 'supabase' | 'offline'; backend?: BackendHealth }) {
+  const integrations = [
+    { name: 'Supabase', description: 'Postgres and native email/password authentication', icon: Database, ready: source === 'supabase', status: source === 'supabase' ? 'Connected' : 'Keys missing — offline dataset' },
+    { name: 'PostGIS & pilot records', description: 'Spatial schema, row-level security, and labelled synthetic data', icon: Map, ready: source === 'supabase', status: source === 'supabase' ? 'Configured' : 'Run schema.sql to configure' },
+    { name: 'FastAPI backend', description: 'Safety checks, matching, dispatch, and verified handovers', icon: ShieldCheck, ready: !!backend?.ok, status: backend?.ok ? 'Running' : (backend ? 'Offline' : 'Checking…') },
+    { name: 'Route planning', description: backend?.routing === 'ors' ? 'Road travel times via OpenRouteService' : 'Haversine estimate (add ORS_API_KEY for road routing)', icon: Route, ready: backend?.routing === 'ors', status: backend?.routing === 'ors' ? 'OpenRouteService' : 'Haversine fallback' },
+    { name: 'Gemini intake', description: 'Confirmed structured extraction from synthetic text only', icon: Sparkles, ready: !!backend?.gemini, status: backend?.gemini ? 'Configured' : 'Not configured' },
+    { name: 'Telegram', description: 'Bot intake and dispatch notifications', icon: MessageCircle, ready: !!backend?.telegram, status: backend?.telegram ? 'Authorized' : 'Add a bot token to enable' },
+    { name: 'Backend hosting', description: backend?.ok ? 'Running locally on port 8000' : 'Start with: uvicorn app.main:app', icon: Globe, ready: !!backend?.ok, status: backend?.deployed === 'render' ? 'Render' : (backend?.ok ? 'Local' : 'Not deployed') },
+  ]
+  return <div className="settings-grid"><section className="panel"><div className="panel-header"><h2>Connections & readiness</h2><Badge variant="outline">Pilot</Badge></div><div className="integration-list">{integrations.map(item => <div className="integration-row" key={item.name}><span className="integration-icon"><item.icon size={19} /></span><div><h3>{item.name}</h3><p>{item.description}</p></div><Badge variant={item.ready ? 'secondary' : 'outline'}>{item.ready ? <Check /> : <CircleDashed />}{item.status}</Badge></div>)}</div></section><div className="flex flex-col gap-5"><section className="panel settings-note"><LockKeyhole size={23} /><h2>Purposefully private.</h2><p>Public pilot views show synthetic records only. Real operational data requires sign-in and appropriate authorization.</p><p>New accounts do not become administrators. Coordinator permissions must be granted separately.</p></section><section className="panel settings-note"><h2>A Bengaluru-first pilot</h2><dl><div><dt>City</dt><dd>Bengaluru, India</dd></div><div><dt>Timezone</dt><dd>Asia/Kolkata</dd></div><div><dt>Data mode</dt><dd>{source === 'supabase' ? 'Supabase + Synthetic' : 'Synthetic (offline)'}</dd></div><div><dt>Frontend</dt><dd>React + Vite</dd></div><div><dt>Backend</dt><dd>FastAPI / Python</dd></div></dl></section></div></div>
+}

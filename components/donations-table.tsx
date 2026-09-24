@@ -1,0 +1,28 @@
+import { useState } from 'react'
+import { ArrowDown, ArrowRight, Boxes, Clock3, Search, SlidersHorizontal, Store } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { categoryLabels, isActive, number, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
+
+export function DonationsTable({ data, now, full = false, openDonation, viewAll }: { data?: PilotData; now: number; full?: boolean; openDonation: (donation: Donation) => void; viewAll: () => void }) {
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('active')
+  const donations = [...(data?.donations ?? [])].filter(d => {
+    const donor = data?.donors.find(p => p.id === d.donor_id)
+    return (filter === 'all' || (filter === 'active' ? isActive(d) : d.status === filter)) && `${d.item} ${donor?.name ?? ''} ${donor?.area ?? ''}`.toLowerCase().includes(query.toLowerCase())
+  }).sort((a, b) => new Date(a.safe_until).getTime() - new Date(b.safe_until).getTime())
+  const visible = full ? donations : donations.slice(0, 4)
+  return <section className="panel donation-panel"><div className="panel-header"><div className="flex items-center gap-2"><h2>{full ? 'Donation directory' : 'Active donations'}</h2>{data && <Badge variant="secondary">{donations.length}</Badge>}</div>{!full && <Button variant="ghost" size="sm" onClick={viewAll}>View all <ArrowRight data-icon="inline-end" /></Button>}</div>
+    <div className="table-toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">Search donations</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search donations or donors…" /></label><label className="filter-select"><SlidersHorizontal size={14} /><span className="sr-only">Filter donations</span><select value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active rescues</option><option value="all">All statuses</option><option value="delivered">Delivered</option><option value="expired">Window closed</option></select></label></div>
+    <div className="table-scroll"><table className="rescue-table"><thead><tr><th>Donation</th><th>Quantity</th><th><span className="flex items-center gap-1">Safe window<ArrowDown size={11} /></span></th><th>Status</th><th><span className="sr-only">Details</span></th></tr></thead><tbody>{visible.map(d => {
+      const donor = data?.donors.find(p => p.id === d.donor_id)
+      const urgent = isActive(d) && new Date(d.safe_until).getTime() - now < 3600000
+      return <tr key={d.id}><td><div className="donation-name"><span className="food-icon"><Store size={19} strokeWidth={1.5} /></span><div><button onClick={() => openDonation(d)}>{d.item}</button><small>{donor?.name ?? 'Donor'} <span>·</span> {donor?.area ?? categoryLabels[d.category]}</small></div></div></td><td><strong>{number(d.qty_kg)}</strong><span className="unit"> kg</span></td><td><span className={urgent ? 'countdown urgent' : 'countdown'}><Clock3 size={13} />{d.status === 'delivered' ? 'Delivered safely' : remainingLabel(d.safe_until, now)}</span></td><td><Badge variant={d.status === 'posted' ? 'outline' : d.status === 'expired' ? 'destructive' : 'secondary'}>{statusLabels[d.status]}</Badge></td><td><Button variant="ghost" size="icon-sm" onClick={() => openDonation(d)} aria-label={`View ${d.item}`}><ArrowUpRightIcon /></Button></td></tr>
+    })}</tbody></table></div>
+    {!visible.length && <Empty className="min-h-40"><EmptyHeader><EmptyMedia variant="icon"><Boxes /></EmptyMedia><EmptyTitle>{data ? 'No donations in this view' : 'Your next rescue starts here'}</EmptyTitle><EmptyDescription>{data ? 'Try a different search or status filter.' : 'Pilot donations will appear after the database setup is approved. No activity or results are fabricated.'}</EmptyDescription></EmptyHeader></Empty>}
+    <div className="table-footer"><span>{data ? `Showing ${visible.length} of ${donations.length} donations` : 'Pilot data not loaded'}</span><span><ShieldIcon />Safety windows checked before matching</span></div>
+  </section>
+}
+function ArrowUpRightIcon() { return <ArrowRight /> }
+function ShieldIcon() { return <Clock3 size={12} /> }
