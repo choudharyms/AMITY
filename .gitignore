@@ -51,4 +51,8 @@ skills-lock.json
 
 # Supabase Local Cache
 supabase/.temp/
+
+# Archives & Temporary files
+*.zip
+*.ps1
 
