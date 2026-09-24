@@ -94,7 +94,15 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 /* ─── Main Landing Component ─── */
-export default function Landing({ onEnter }: { onEnter: () => void }) {
+export default function Landing({
+  onEnter,
+  onJoinUs,
+  onLogin,
+}: {
+  onEnter: () => void
+  onJoinUs?: () => void
+  onLogin?: () => void
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const imagesRef = useRef<HTMLImageElement[]>([])
@@ -416,10 +424,16 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
             </div>
           ))}
         </div>
-        <div className="nav-right">
-          <button className="nav-cta" onClick={onEnter}>
-            Open Dashboard
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <div className="nav-right nav-actions">
+          <button className="nav-link-btn" onClick={onLogin ?? onEnter}>
+            Sign In
+          </button>
+          <button className="nav-cta nav-cta-join" onClick={onJoinUs ?? onEnter}>
+            Join Us
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <button className="nav-cta" onClick={onEnter} title="Open live operations workspace">
+            Dashboard
           </button>
         </div>
       </nav>
@@ -468,10 +482,18 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
           <div className="cta-content">
             <h2 className="cta-headline">Ready to rescue<br />your city's surplus?</h2>
             <p className="cta-desc">Join Bengaluru's real-time food rescue network.<br />Every meal saved is a life touched.</p>
-            <button className="cta-button" onClick={onEnter}>
-              <span>Enter the Dashboard</span>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
+            <div className="cta-actions-group">
+              <button className="cta-button" onClick={onJoinUs ?? onEnter}>
+                <span>Join Us / Register Partner</span>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button className="cta-secondary-btn" onClick={onLogin ?? onEnter}>
+                <span>Sign In to Account</span>
+              </button>
+              <button className="nav-link-btn" onClick={onEnter} style={{ fontSize: '13px' }}>
+                Explore Dashboard Directly →
+              </button>
+            </div>
           </div>
         </div>
       </div>
