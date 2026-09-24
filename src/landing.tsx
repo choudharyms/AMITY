@@ -6,7 +6,9 @@ const SCROLL_HEIGHT_MULTIPLIER = 14 // Much taller scroll = slower, more cinemat
 
 /* ─── Frame path helper ─── */
 function framePath(i: number): string {
-  return `/frames/ezgif-frame-${String(i).padStart(3, '0')}.jpg`
+  const base = import.meta.env.BASE_URL || '/'
+  const cleanBase = base.endsWith('/') ? base : `${base}/`
+  return `${cleanBase}frames/ezgif-frame-${String(i).padStart(3, '0')}.jpg`
 }
 
 /* ─── Story chapters (synced to frame ranges) ─── */
@@ -106,11 +108,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const rafRef = useRef<number>(0)
   const dprRef = useRef(Math.min(window.devicePixelRatio || 1, 2))
 
-  /* ─── Progressive priority preload (never blocks or gets stuck) ─── */
+  /* ─── Fast priority preload (immediate hero entry) ─── */
   useEffect(() => {
     let loaded = 0
     let readyTriggered = false
-    const REQUIRED_INITIAL_FRAMES = 8 // Only require initial frames for instant hero entry
     const images: HTMLImageElement[] = new Array(TOTAL_FRAMES + 1)
     imagesRef.current = images
 
@@ -121,10 +122,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
       }
     }
 
-    // Safety failsafe: never trap user on loading screen under any network conditions
+    // Auto-reveal within 500ms max under all conditions
     const safetyTimer = setTimeout(() => {
       triggerReady()
-    }, 1500)
+    }, 500)
 
     const loadFrame = (i: number, onDone?: () => void) => {
       const img = new Image()
@@ -132,26 +133,31 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
       img.onload = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded >= REQUIRED_INITIAL_FRAMES) triggerReady()
+        if (i === 1 || loaded >= 2) {
+          triggerReady()
+        }
+        if (i === 1) {
+          drawFrame(1)
+        }
         if (onDone) onDone()
       }
       img.onerror = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded >= REQUIRED_INITIAL_FRAMES) triggerReady()
+        triggerReady()
         if (onDone) onDone()
       }
       images[i] = img
     }
 
-    // Priority 1: Load initial 15 frames immediately
-    for (let i = 1; i <= Math.min(15, TOTAL_FRAMES); i++) {
+    // Priority 1: Load initial 10 frames immediately
+    for (let i = 1; i <= Math.min(10, TOTAL_FRAMES); i++) {
       loadFrame(i)
     }
 
-    // Priority 2: Stream remaining frames progressively in chunks to avoid connection starvation
-    let nextFrame = 16
-    const chunkSize = 12
+    // Priority 2: Stream remaining frames in background chunks
+    let nextFrame = 11
+    const chunkSize = 15
 
     const queueNextChunk = () => {
       if (nextFrame > TOTAL_FRAMES) return
@@ -161,14 +167,14 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         loadFrame(i, () => {
           chunkRemaining--
           if (chunkRemaining === 0) {
-            setTimeout(queueNextChunk, 20)
+            setTimeout(queueNextChunk, 30)
           }
         })
       }
       nextFrame = end
     }
 
-    const bgTimer = setTimeout(queueNextChunk, 100)
+    const bgTimer = setTimeout(queueNextChunk, 60)
 
     return () => {
       clearTimeout(safetyTimer)
@@ -293,6 +299,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     const fadeOut = 12
     if (f < chapter.startFrame) return 0
     if (f > chapter.endFrame) return 0
+    // Chapter 1 is the initial hero chapter — 100% visible immediately at frame 1!
+    if (chapter.startFrame === 1 && f < chapter.startFrame + fadeIn) {
+      return 1
+    }
     if (f < chapter.startFrame + fadeIn) {
       return (f - chapter.startFrame) / fadeIn
     }
@@ -307,6 +317,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     const fadeIn = 12
     if (f < chapter.startFrame) return 60
     if (f > chapter.endFrame) return -30
+    // Chapter 1 is at resting position 0 immediately
+    if (chapter.startFrame === 1 && f < chapter.startFrame + fadeIn) {
+      return 0
+    }
     if (f < chapter.startFrame + fadeIn) {
       const t = (f - chapter.startFrame) / fadeIn
       return 60 * (1 - easeOutCubic(t))
@@ -318,7 +332,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     return 1 - Math.pow(1 - t, 3)
   }
 
-  const loadProgress = Math.min(100, Math.round((loadedCount / 8) * 100))
+  const loadProgress = Math.min(100, Math.round((loadedCount / 3) * 100))
 
   /* ─── Progress dots ─── */
   const activeChapterIdx = chapters.findIndex(
@@ -332,7 +346,13 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     <div
       ref={containerRef}
       className="landing-root"
-      style={{ height: `${SCROLL_HEIGHT_MULTIPLIER * 100}vh` }}
+      style={{
+        height: `${SCROLL_HEIGHT_MULTIPLIER * 100}vh`,
+        backgroundImage: `url(${framePath(1)})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
     >
       {/* ─── Loading overlay ─── */}
       {!isReady && (
