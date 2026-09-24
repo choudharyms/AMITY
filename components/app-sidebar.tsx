@@ -21,7 +21,7 @@ export function AppSidebar({ section, setSection, mobileOpen, close, session, si
   return <>
     {mobileOpen && <button aria-label="Close navigation" className="sidebar-backdrop" onClick={close} />}
     <aside className={cn('app-sidebar', mobileOpen && 'is-open')}>
-      <a className="brand" href="#overview" onClick={() => navigate('overview')} aria-label="Surplus to Shelter home"><span className="brand-icon"><Leaf size={23} /></span><span>surplus<span className="brand-subline">to shelter</span></span></a>
+      <a className="brand" href="#overview" onClick={() => navigate('overview')} aria-label="AaharSetu home"><span className="brand-icon"><Leaf size={23} /></span><span>AaharSetu<span className="brand-subline">Food Rescue Bridge</span></span></a>
       <Button variant="ghost" size="icon" className="mobile-sidebar-close" aria-label="Close navigation" onClick={close}><X /></Button>
       <button className="workspace-picker" onClick={() => navigate('settings')}><span className="workspace-icon"><MapPin size={16} /></span><span><strong>Bengaluru network</strong><small>Synthetic pilot workspace</small></span><ChevronDown size={14} /></button>
       <div className="nav-section-label">WORKSPACE</div>

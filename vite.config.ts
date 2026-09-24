@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), VitePWA({
       registerType: 'prompt',
       manifest: {
-        name: 'Surplus to Shelter', short_name: 'Surplus',
-        description: 'Every surplus meal deserves a second chance. Food-rescue coordination for Bengaluru.',
+        name: 'AaharSetu', short_name: 'AaharSetu',
+        description: 'AaharSetu: Turn unsold food into a shelter next meal before it hits the dumpster. Food-rescue coordination for Bengaluru.',
         theme_color: '#173e2c', background_color: '#f7f8f5', display: 'standalone',
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
