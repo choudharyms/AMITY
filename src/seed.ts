@@ -84,7 +84,17 @@ function buildDonations(now: number): { donations: Donation[]; dispatch_events: 
 let cachedPilotData: PilotData | null = null
 
 export function buildSeed(now = Date.now()): PilotData {
-  if (cachedPilotData) return cachedPilotData
+  if (cachedPilotData) {
+    return {
+      ...cachedPilotData,
+      donors: [...cachedPilotData.donors],
+      recipients: [...cachedPilotData.recipients],
+      drivers: [...cachedPilotData.drivers],
+      donations: [...cachedPilotData.donations],
+      dispatch_events: [...cachedPilotData.dispatch_events],
+      records: [...cachedPilotData.records],
+    }
+  }
   const { donations, dispatch_events, records } = buildDonations(now)
   cachedPilotData = {
     donors: buildDonors(),
@@ -94,7 +104,7 @@ export function buildSeed(now = Date.now()): PilotData {
     dispatch_events,
     records,
   }
-  return cachedPilotData
+  return { ...cachedPilotData }
 }
 
 export function addLocalDonation(donation: Omit<Donation, 'id' | 'created_at' | 'is_synthetic'>): Donation {
@@ -120,7 +130,7 @@ export function addLocalDonation(donation: Omit<Donation, 'id' | 'created_at' | 
   return newDonation
 }
 
-export function updateLocalDonation(id: string, action: 'match' | 'pickup' | 'deliver'): Donation | null {
+export function updateLocalDonation(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate'): Donation | null {
   const seed = buildSeed()
   const donation = seed.donations.find(d => d.id === id)
   if (!donation) return null
@@ -167,6 +177,25 @@ export function updateLocalDonation(id: string, action: 'match' | 'pickup' | 'de
       area: recipient?.area ?? 'Bengaluru',
       delivered_at: new Date(now).toISOString(),
       consume_by: donation.safe_until,
+    })
+  } else if (action === 'escalate') {
+    const prevDriver = seed.drivers.find(d => d.id === donation.driver_id)
+    const newDriver = seed.drivers.find(d => d.id !== donation.driver_id && d.availability) ?? seed.drivers[1]
+    donation.driver_id = newDriver.id
+    donation.status = 'matched'
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'timeout',
+      message: `${prevDriver?.name ?? 'Volunteer'} acknowledgment timed out (3m limit). Widening dispatch radius from 3 km to 8 km.`,
+      created_at: new Date(now).toISOString(),
+    })
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'escalated',
+      message: `Escalation complete: Reassigned to ${newDriver.name} (${newDriver.vehicle}). Alert dispatched to dispatch coordinator.`,
+      created_at: new Date(now + 1000).toISOString(),
     })
   }
   return donation

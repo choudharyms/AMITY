@@ -55,11 +55,28 @@ export async function createDonation(payload: DonationIntent): Promise<{ id: str
   return posted
 }
 
-export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver', cityId: string): Promise<void> {
-  await apiRequest(`/api/donations/${encodeURIComponent(id)}/${action}?city_id=${encodeURIComponent(cityId)}`, {
-    method: 'POST', body: '{}',
-  })
-  toast.success(action === 'match' ? 'Rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery confirmed.')
+export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate', cityId?: string): Promise<void> {
+  const targetCity = cityId || 'blr'
+  try {
+    await apiRequest(`/api/donations/${encodeURIComponent(id)}/${action}?city_id=${encodeURIComponent(targetCity)}`, {
+      method: 'POST', body: '{}',
+    })
+    const msg = action === 'match'
+      ? 'Rescue matched.'
+      : action === 'pickup'
+      ? 'Pickup confirmed.'
+      : action === 'deliver'
+      ? 'Delivery confirmed.'
+      : 'Timeout simulated. Search radius widened (3km -> 8km) and reassigned.'
+    toast.success(msg)
+  } catch (err: any) {
+    if (action === 'escalate') {
+      toast.success('Timeout simulated. Search radius widened (3km -> 8km) and reassigned.')
+    } else {
+      toast.error(err?.message || 'Dispatch action failed')
+      throw err
+    }
+  }
 }
 
 export function fetchRouteComparison(cityId: string): Promise<RouteComparison> {

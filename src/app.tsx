@@ -54,10 +54,23 @@ function isProfileIncomplete(profile: ReturnType<typeof useProfile>['profile']) 
 }
 
 export default function App({
-  data, source, refresh, backend, error, cityId, onCityChange,
+  data,
+  source,
+  refresh,
+  backend,
+  error,
+  cityId = 'blr',
+  onCityChange,
+  onBackToLanding,
 }: {
-  data?: PilotData; source?: 'supabase' | 'offline' | 'unavailable'; refresh?: () => void;
-  backend?: BackendHealth; error?: Error; cityId: string; onCityChange: (cityId: string) => void;
+  data?: PilotData
+  source?: 'supabase' | 'offline' | 'unavailable'
+  refresh?: () => void
+  backend?: BackendHealth
+  error?: Error
+  cityId: string
+  onCityChange?: (cityId: string) => void
+  onBackToLanding?: () => void
 }) {
   const [section, updateSection] = useState<Section>(getSection)
   const [mobile, setMobile] = useState(false)
@@ -173,6 +186,7 @@ export default function App({
         session={session} profile={profile ?? undefined}
         signIn={() => setAuth(true)} signOut={signOut}
         activeCount={active?.length} help={() => setInfo('help')}
+        onBackToLanding={onBackToLanding}
       />
 
       <div className="app-main">
@@ -331,7 +345,6 @@ function UrgencyBanner({ count, onDispatch }: { count: number; onDispatch: () =>
       <ShieldCheck size={17} />
       <p>
         <strong>{count} {count === 1 ? 'rescue needs' : 'rescues need'} attention.</strong> Less than an hour remains in the safe window.
-      </p>
       <Button variant="ghost" size="sm" onClick={onDispatch}>
         Review rescues<ChevronRight data-icon="inline-end" />
       </Button>

@@ -34,6 +34,15 @@ export function DispatchView({ data, now, cityId, role, openDonation, refresh }:
     finally { setBusy(null) }
   }
 
+  async function runEscalate(id: string) {
+    setBusy(id)
+    try {
+      await dispatchAction(id, 'escalate')
+      refresh()
+    } catch { /* toast already shown */ }
+    finally { setBusy(null) }
+  }
+
   function handleActionClick(d: Donation, action: 'match' | 'pickup' | 'deliver') {
     if (action === 'match') {
       runMatch(d.id)
@@ -66,20 +75,39 @@ export function DispatchView({ data, now, cityId, role, openDonation, refresh }:
                 <span>{d.qty_kg} kg</span>
                 <span>{d.status === 'delivered' ? 'Rescue complete' : remainingLabel(d.safe_until, now)}</span>
               </div>
-              {column.action ? (
-                (column.action === 'match' && role === 'coordinator') || (column.action === 'pickup' && role === 'driver') || (column.action === 'deliver' && ['recipient', 'shelter'].includes(role ?? '')) ? <Button variant="outline" disabled={busy === d.id} onClick={() => handleActionClick(d, column.action!)}>
-                  {busy === d.id ? (
-                    <LoaderCircle data-icon="inline-start" className="animate-spin" />
-                  ) : column.action !== 'match' ? (
-                    <ShieldCheck data-icon="inline-start" size={14} className="text-primary" />
-                  ) : null}
-                  {column.label}
-                </Button> : <p className="text-xs text-muted-foreground">Waiting for the assigned {column.action === 'match' ? 'coordinator' : column.action === 'pickup' ? 'driver' : 'recipient'}.</p>
-              ) : (
-                <Button variant="ghost" onClick={() => openDonation(d)}>
-                  View rescue<ArrowRight data-icon="inline-end" />
-                </Button>
-              )}
+              <div className="flex flex-col gap-1.5 w-full mt-2">
+                {column.action ? (
+                  (!role || (column.action === 'match' && (role === 'coordinator' || role === 'admin')) || (column.action === 'pickup' && (role === 'driver' || role === 'coordinator')) || (column.action === 'deliver' && ['recipient', 'shelter', 'coordinator'].includes(role ?? ''))) ? (
+                    <Button variant="outline" disabled={busy === d.id} onClick={() => handleActionClick(d, column.action!)}>
+                      {busy === d.id ? (
+                        <LoaderCircle data-icon="inline-start" className="animate-spin" />
+                      ) : column.action !== 'match' ? (
+                        <QrCode data-icon="inline-start" size={14} className="text-primary" />
+                      ) : null}
+                      {column.label}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Waiting for the assigned {column.action === 'match' ? 'coordinator' : column.action === 'pickup' ? 'driver' : 'recipient'}.</p>
+                  )
+                ) : (
+                  <Button variant="ghost" onClick={() => openDonation(d)}>
+                    View rescue<ArrowRight data-icon="inline-end" />
+                  </Button>
+                )}
+                {column.action === 'pickup' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 h-7 w-full justify-center"
+                    disabled={busy === d.id}
+                    onClick={() => runEscalate(d.id)}
+                    title="Simulate unresponsive volunteer timeout (3m limit) & auto-widen search radius"
+                  >
+                    <AlertTriangle size={12} className="mr-1.5" />
+                    Simulate Timeout & Escalate
+                  </Button>
+                )}
+              </div>
             </article>
           ))}
           {!donations.length && (

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Bike, Boxes, ChevronDown, CircleHelp, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sprout, Users, X } from 'lucide-react'
+import { ArrowUpRight, Bike, Boxes, ChevronDown, CircleHelp, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sparkles, Sprout, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { Section } from '@/src/types'
@@ -55,9 +55,10 @@ const roleLabel: Record<AccountProfile['role'], string> = {
   shelter: 'Shelter',
 }
 
-export function AppSidebar({ section, setSection, mobileOpen, close, session, profile, signIn, signOut, activeCount, help }: {
+export function AppSidebar({ section, setSection, mobileOpen, close, session, profile, signIn, signOut, activeCount, help, onBackToLanding }: {
   section: Section; setSection: (section: Section) => void; mobileOpen: boolean; close: () => void;
   session: Session | null | undefined; profile?: AccountProfile; signIn: () => void; signOut: () => void; activeCount?: number; help: () => void;
+  onBackToLanding?: () => void;
 }) {
   const navigate = (next: Section) => { setSection(next); close() }
   const navItems = roleNav(profile?.role)
@@ -110,6 +111,7 @@ export function AppSidebar({ section, setSection, mobileOpen, close, session, pr
         <p>Every rescue is a small act<br />with a lasting impact.</p>
         <button onClick={() => navigate('impact')}>Explore your impact <ArrowUpRight size={15} /></button>
       </div>
+      {onBackToLanding && <button className="help-link mb-1" onClick={onBackToLanding}><Sparkles size={17} />Interactive story / Landing<ArrowUpRight size={13} /></button>}
       <button className="help-link" onClick={help}><CircleHelp size={17} />Help & safety guidelines<ArrowUpRight size={13} /></button>
 
       <div className="sidebar-profile">

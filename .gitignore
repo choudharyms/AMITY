@@ -58,3 +58,5 @@ supabase/.temp/
 *.ps1
 *.mp4
 scroll/
+.edge-temp*
+scratch/
