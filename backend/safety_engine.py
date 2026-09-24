@@ -20,8 +20,8 @@ def parse_iso(ts_str: str) -> datetime:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
-    except Exception:
-        return datetime.now(timezone.utc)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid ISO-8601 timestamp") from exc
 
 def calculate_safe_window(
     category: Category,

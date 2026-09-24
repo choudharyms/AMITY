@@ -1,4 +1,4 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_KEY
@@ -6,7 +6,5 @@ const key = import.meta.env.VITE_SUPABASE_KEY
 export const isSupabaseConfigured = Boolean(url && key)
 
 export const supabase = isSupabaseConfigured
-  ? createBrowserClient(url, key, {
-      cookieOptions: { sameSite: 'none', secure: true },
-    })
+  ? createClient(url, key, { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } })
   : null

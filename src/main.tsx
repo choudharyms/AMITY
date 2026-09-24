@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import App from './app'
 import Landing from './landing'
 import { usePilotData, useBackendHealth } from './use-pilot-data'
+import { getSavedCityId, saveCityId } from './cities'
 import './styles.css'
 import './landing.css'
 
@@ -19,6 +20,9 @@ function Root() {
     }
     return false
   })
+  const [cityId, setCityId] = useState(getSavedCityId)
+  const { data, source, refresh, error } = usePilotData(cityId)
+  const backend = useBackendHealth()
 
   React.useEffect(() => {
     const handleHash = () => {
@@ -33,8 +37,10 @@ function Root() {
     return () => window.removeEventListener('hashchange', handleHash)
   }, [])
 
-  const { data, source, refresh } = usePilotData()
-  const backend = useBackendHealth()
+  function changeCity(nextCityId: string) {
+    saveCityId(nextCityId)
+    setCityId(nextCityId)
+  }
 
   if (!showDashboard) {
     return (
@@ -55,6 +61,9 @@ function Root() {
       source={source}
       refresh={refresh}
       backend={backend}
+      error={error}
+      cityId={cityId}
+      onCityChange={changeCity}
       onBackToLanding={() => {
         window.location.hash = 'landing'
         setShowDashboard(false)

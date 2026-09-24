@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { cities } from '@/src/cities'
 import type { Donor, Driver, PilotData, Recipient, Donation } from '@/src/types'
 import { getRoadRoute } from '@/lib/routing'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -110,13 +111,16 @@ const BENGALURU_CENTER = { longitude: 77.598, latitude: 12.9716, zoom: 11.75 }
 
 export const RescueMap = memo(function RescueMap({
   data,
+  cityId = 'blr',
   expanded = false,
   onExpand,
 }: {
   data?: PilotData
+  cityId?: string
   expanded?: boolean
   onExpand?: () => void
 }) {
+  const city = useMemo(() => cities.find(item => item.id === cityId) ?? { id: 'blr', name: 'Bengaluru', state: 'Karnataka', longitude: 77.598, latitude: 12.9716 }, [cityId])
   const mapRef = useRef<MapRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -435,14 +439,26 @@ interface CorridorFeature {
 
   const handleRecenter = useCallback(() => {
     mapRef.current?.flyTo({
-      center: [BENGALURU_CENTER.longitude, BENGALURU_CENTER.latitude],
-      zoom: BENGALURU_CENTER.zoom,
+      center: [city.longitude, city.latitude],
+      zoom: 11.75,
       pitch: 0,
       bearing: 0,
       duration: 700,
       essential: true,
     })
-  }, [])
+  }, [city])
+
+  // Recenter when selected city changes
+  useEffect(() => {
+    if (loaded && mapRef.current) {
+      mapRef.current.flyTo({
+        center: [city.longitude, city.latitude],
+        zoom: 11.75,
+        duration: 800,
+        essential: true,
+      })
+    }
+  }, [city, loaded])
 
   const handleLocateMe = useCallback(() => {
     if (!navigator.geolocation) {
@@ -554,7 +570,7 @@ interface CorridorFeature {
         <MapGL
           ref={mapRef}
           mapLib={maplibregl}
-          initialViewState={BENGALURU_CENTER}
+          initialViewState={{ longitude: city.longitude, latitude: city.latitude, zoom: 11.75 }}
           mapStyle={activeThemeStyle}
           attributionControl={{ compact: true }}
           style={{ width: '100%', height: '100%' }}

@@ -8,26 +8,26 @@ import { remainingLabel, type Donation, type PilotData } from '@/src/types'
 import { dispatchAction, fetchRouteComparison, type RouteComparison } from '@/src/api'
 import { HandoverDialog } from '@/components/handover-dialog'
 
-export function DispatchView({ data, now, openDonation, refresh }: { data?: PilotData; now: number; openDonation: (d: Donation) => void; refresh: () => void }) {
+export function DispatchView({ data, now, cityId, role, openDonation, refresh }: { data?: PilotData; now: number; cityId: string; role?: string; openDonation: (d: Donation) => void; refresh: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [handoverTarget, setHandoverTarget] = useState<{ donation: Donation; stage: 'pickup' | 'delivery' } | null>(null)
   const { data: routeBenchmark, mutate: reloadBenchmark, isValidating } = useSWR<RouteComparison>(
-    'route-benchmark',
-    fetchRouteComparison,
+    ['route-benchmark', cityId],
+    () => fetchRouteComparison(cityId),
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   )
 
   const columns = [
     { title: 'Find a match', statuses: ['posted'], icon: Route, action: 'match' as const, label: 'Match & assign' },
-    { title: 'Awaiting pickup', statuses: ['matched', 'accepted'], icon: Clock3, action: 'pickup' as const, label: 'Verify & pick up' },
-    { title: 'On the way', statuses: ['picked_up'], icon: ArrowRight, action: 'deliver' as const, label: 'Verify & deliver' },
+    { title: 'Awaiting pickup', statuses: ['matched', 'accepted'], icon: Clock3, action: 'pickup' as const, label: 'Confirm pickup' },
+    { title: 'On the way', statuses: ['picked_up'], icon: ArrowRight, action: 'deliver' as const, label: 'Confirm delivery' },
     { title: 'Delivered', statuses: ['delivered'], icon: CheckCheck, action: null, label: '' },
   ]
 
   async function runMatch(id: string) {
     setBusy(id)
     try {
-      await dispatchAction(id, 'match')
+      await dispatchAction(id, 'match', cityId)
       refresh()
       reloadBenchmark()
     } catch { /* toast already shown */ }
@@ -77,14 +77,18 @@ export function DispatchView({ data, now, openDonation, refresh }: { data?: Pilo
               </div>
               <div className="flex flex-col gap-1.5 w-full mt-2">
                 {column.action ? (
-                  <Button variant="outline" disabled={busy === d.id} onClick={() => handleActionClick(d, column.action!)}>
-                    {busy === d.id ? (
-                      <LoaderCircle data-icon="inline-start" className="animate-spin" />
-                    ) : column.action !== 'match' ? (
-                      <QrCode data-icon="inline-start" size={14} className="text-primary" />
-                    ) : null}
-                    {column.label}
-                  </Button>
+                  (!role || (column.action === 'match' && (role === 'coordinator' || role === 'admin')) || (column.action === 'pickup' && (role === 'driver' || role === 'coordinator')) || (column.action === 'deliver' && ['recipient', 'shelter', 'coordinator'].includes(role ?? ''))) ? (
+                    <Button variant="outline" disabled={busy === d.id} onClick={() => handleActionClick(d, column.action!)}>
+                      {busy === d.id ? (
+                        <LoaderCircle data-icon="inline-start" className="animate-spin" />
+                      ) : column.action !== 'match' ? (
+                        <QrCode data-icon="inline-start" size={14} className="text-primary" />
+                      ) : null}
+                      {column.label}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Waiting for the assigned {column.action === 'match' ? 'coordinator' : column.action === 'pickup' ? 'driver' : 'recipient'}.</p>
+                  )
                 ) : (
                   <Button variant="ghost" onClick={() => openDonation(d)}>
                     View rescue<ArrowRight data-icon="inline-end" />
@@ -148,10 +152,10 @@ export function DispatchView({ data, now, openDonation, refresh }: { data?: Pilo
             <Zap size={15} />
           </div>
           <div className="text-2xl font-black text-foreground font-mono">
-            {routeBenchmark?.joint_route_km ?? 19.4} <span className="text-sm font-normal text-muted-foreground font-sans">total km</span>
+            {routeBenchmark ? routeBenchmark.joint_route_km : '—'} <span className="text-sm font-normal text-muted-foreground font-sans">road km</span>
           </div>
           <div className="mt-2 text-xs text-primary flex items-center gap-1 font-medium">
-            <CheckCheck size={14} /> 0 missed expiry deadlines ({routeBenchmark?.stops_count ?? 5} stops)
+            <CheckCheck size={14} /> {routeBenchmark ? `${routeBenchmark.joint_missed_deadlines} expired windows · ${routeBenchmark.stops_count} stops` : 'Waiting for an ORS route result'}
           </div>
         </div>
 
@@ -162,10 +166,10 @@ export function DispatchView({ data, now, openDonation, refresh }: { data?: Pilo
             <AlertTriangle size={15} className="text-amber-500" />
           </div>
           <div className="text-2xl font-black text-foreground font-mono">
-            {routeBenchmark?.greedy_baseline_km ?? 26.2} <span className="text-sm font-normal text-muted-foreground font-sans">total km</span>
+            {routeBenchmark ? routeBenchmark.greedy_baseline_km : '—'} <span className="text-sm font-normal text-muted-foreground font-sans">road km</span>
           </div>
           <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
-            <AlertTriangle size={14} /> {routeBenchmark?.greedy_missed_deadlines ?? 2} deadlines missed due to detours
+            <AlertTriangle size={14} /> {routeBenchmark ? `${routeBenchmark.greedy_missed_deadlines} expired windows` : 'No live benchmark available'}
           </div>
         </div>
 
@@ -176,10 +180,10 @@ export function DispatchView({ data, now, openDonation, refresh }: { data?: Pilo
             <TrendingUp size={15} />
           </div>
           <div className="text-2xl font-black text-primary font-mono">
-            +{routeBenchmark?.pct_distance_saved ?? 26.0}% <span className="text-sm font-normal text-muted-foreground font-sans">travel saved</span>
+            {routeBenchmark ? `${routeBenchmark.pct_distance_saved > 0 ? '+' : ''}${routeBenchmark.pct_distance_saved}%` : '—'} <span className="text-sm font-normal text-muted-foreground font-sans">distance change</span>
           </div>
           <div className="mt-2 text-xs text-foreground/80 font-medium">
-            {routeBenchmark?.km_saved ?? 6.8} km avoided · 100% On-Time Delivery
+            {routeBenchmark ? `${routeBenchmark.km_saved} km saved · ${routeBenchmark.joint_missed_deadlines} joint-route deadlines missed` : 'Uses only pending donations and real ORS road routes.'}
           </div>
         </div>
       </div>
@@ -187,15 +191,16 @@ export function DispatchView({ data, now, openDonation, refresh }: { data?: Pilo
       <div className="text-xs text-muted-foreground bg-muted/20 p-3 rounded-lg flex items-start gap-2">
         <ShieldCheck size={15} className="text-primary shrink-0 mt-0.5" />
         <p>
-          <strong>Why this matters to judges:</strong> Traditional delivery grabs the nearest location greedily, causing later stops to expire in transit. AaharSetu evaluates pending pickups jointly, enforcing the food-safety deadline as a hard time window to ensure zero food waste.
+          <strong>Live route comparison:</strong> Uses the selected city's pending donations and OpenRouteService road distance and travel duration. Empty networks and unavailable routes are shown without generated sample stops.
         </p>
       </div>
     </section>
 
-    {/* Handover & OTP Verification Modal */}
+    {/* Role-checked handover confirmation */}
     <HandoverDialog
       donation={handoverTarget?.donation ?? null}
       stage={handoverTarget?.stage ?? null}
+      cityId={cityId}
       data={data}
       onClose={() => setHandoverTarget(null)}
       onSuccess={() => {

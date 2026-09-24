@@ -5,6 +5,7 @@
 
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnp
 .pnp.js
 
@@ -52,7 +53,10 @@ skills-lock.json
 # Supabase Local Cache
 supabase/.temp/
 
-# Temp test folders
+# Archives & Temporary files
+*.zip
+*.ps1
+*.mp4
+scroll/
 .edge-temp*
 scratch/
-

@@ -14,10 +14,21 @@ else:
     load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("VITE_SUPABASE_KEY", "")
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_PUBLISHABLE_KEY")
+    or os.getenv("SUPABASE_KEY")
+    or os.getenv("VITE_SUPABASE_KEY", "")
+)
 SUPABASE_DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL", "")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 ORS_API_KEY = os.getenv("ORS_API_KEY", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 PORT = int(os.getenv("BACKEND_PORT", 8000))
 HOST = os.getenv("BACKEND_HOST", "127.0.0.1")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    if origin.strip()
+]
