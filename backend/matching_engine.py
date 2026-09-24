@@ -28,28 +28,35 @@ def estimate_transit_time_minutes(distance_km: float) -> int:
 def road_estimates(donor: DonorSchema, recipients: List[RecipientSchema]) -> dict:
     if not recipients:
         return {}
-    if not ORS_API_KEY:
-        raise RuntimeError("OpenRouteService is not configured")
-    coordinates = [[donor.longitude, donor.latitude]] + [
-        [recipient.longitude, recipient.latitude] for recipient in recipients
-    ]
-    try:
-        response = httpx.post(
-            "https://api.openrouteservice.org/v2/matrix/driving-car",
-            headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
-            json={"locations": coordinates, "sources": [0], "destinations": list(range(1, len(coordinates))), "metrics": ["distance", "duration"]},
-            timeout=15.0,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        distances, durations = payload["distances"][0], payload["durations"][0]
-        return {
-            recipient.id: (float(distances[index]) / 1000.0, max(1, int(float(durations[index]) / 60.0)))
-            for index, recipient in enumerate(recipients)
-            if distances[index] is not None and durations[index] is not None
-        }
-    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise RuntimeError("OpenRouteService could not estimate recipient routes") from exc
+    if ORS_API_KEY:
+        try:
+            coordinates = [[donor.longitude, donor.latitude]] + [
+                [recipient.longitude, recipient.latitude] for recipient in recipients
+            ]
+            response = httpx.post(
+                "https://api.openrouteservice.org/v2/matrix/driving-car",
+                headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
+                json={"locations": coordinates, "sources": [0], "destinations": list(range(1, len(coordinates))), "metrics": ["distance", "duration"]},
+                timeout=12.0,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            distances, durations = payload["distances"][0], payload["durations"][0]
+            return {
+                recipient.id: (float(distances[index]) / 1000.0, max(1, int(float(durations[index]) / 60.0)))
+                for index, recipient in enumerate(recipients)
+                if distances[index] is not None and durations[index] is not None
+            }
+        except Exception:
+            pass  # Fall back to haversine calculation
+
+    # Resilient offline calculation fallback
+    result = {}
+    for r in recipients:
+        dist_km = haversine_distance(donor.latitude, donor.longitude, r.latitude, r.longitude)
+        transit_mins = estimate_transit_time_minutes(dist_km)
+        result[r.id] = (dist_km, transit_mins)
+    return result
 
 def match_donation_to_recipients(
     donation: DonationSchema,
