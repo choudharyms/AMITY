@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
       },
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },

@@ -129,8 +129,8 @@ export function AppSidebar({
   }
 
   const navItems = roleNav(profile?.role)
-  const initials = profile?.display_name
-    ? profile.display_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const initials = profile?.display_name?.trim()
+    ? profile.display_name.trim().split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : undefined
 
   return (

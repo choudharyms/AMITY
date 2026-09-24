@@ -23,6 +23,7 @@ import { OverviewMetrics } from '@/components/overview-metrics'
 import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
 import { WorkspacesView } from '@/components/workspaces-view'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -325,30 +326,32 @@ export default function App({
             </div>
           )}
 
-          {/* Section routing */}
-          {section === 'overview' && renderOverview()}
-          {section === 'workspaces' && (
-            <WorkspacesView
-              cityId={cityId}
-              onCityChange={onCityChange ?? (() => {})}
-              data={data}
-              source={source}
-            />
-          )}
-          {section === 'donations' && <DonationsTable data={data} now={now} full openDonation={setSelected} viewAll={() => {}} />}
-          {section === 'dispatch' && (
-            <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
-          )}
-          {section === 'recipients' && <RecipientView data={data} />}
-          {section === 'drivers' && <DriverView data={data} onDispatch={() => setSection('dispatch')} />}
-          {section === 'impact' && <ImpactView data={data} />}
-          {section === 'settings' && (
-            <SettingsView
-              source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}
-              accountEmail={session?.user.email} profile={profile} profileError={profileError}
-              refreshProfile={refreshProfile}
-            />
-          )}
+          {/* Section routing with per-section ErrorBoundary protection */}
+          <ErrorBoundary>
+            {section === 'overview' && renderOverview()}
+            {section === 'workspaces' && (
+              <WorkspacesView
+                cityId={cityId}
+                onCityChange={onCityChange ?? (() => {})}
+                data={data}
+                source={source}
+              />
+            )}
+            {section === 'donations' && <DonationsTable data={data} now={now} full openDonation={setSelected} viewAll={() => {}} />}
+            {section === 'dispatch' && (
+              <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
+            )}
+            {section === 'recipients' && <RecipientView data={data} />}
+            {section === 'drivers' && <DriverView data={data} onDispatch={() => setSection('dispatch')} />}
+            {section === 'impact' && <ImpactView data={data} />}
+            {section === 'settings' && (
+              <SettingsView
+                source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}
+                accountEmail={session?.user.email} profile={profile} profileError={profileError}
+                refreshProfile={refreshProfile}
+              />
+            )}
+          </ErrorBoundary>
 
           <footer className="page-footer">
             <span><Leaf size={13} />AaharSetu (आहारसेतु) · Food Rescue Bridge</span>

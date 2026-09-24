@@ -46,3 +46,17 @@ export function remainingLabel(date: string, now: number) {
   return minutes < 60 ? `${minutes}m left` : `${Math.floor(minutes / 60)}h ${minutes % 60}m left`
 }
 export const number = (value: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 }).format(value)
+
+export function parseAccepts(raw: unknown): Category[] {
+  if (Array.isArray(raw)) return raw as Category[]
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed as Category[]
+      if (typeof parsed === 'string') return [parsed as Category]
+    } catch {
+      return raw.split(',').map(s => s.trim()) as Category[]
+    }
+  }
+  return ['cooked_hot', 'cooked_cold', 'packaged', 'produce', 'bakery']
+}
