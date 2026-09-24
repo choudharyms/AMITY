@@ -281,12 +281,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
             </div>
             <div className="loader-text">
               <span className="loader-brand">AAHARSETU</span>
-              <span className="loader-status">Preparing cinematic experience</span>
             </div>
             <div className="loader-bar-track">
               <div className="loader-bar-fill" style={{ width: `${loadProgress}%` }} />
             </div>
-            <span className="loader-pct">{loadProgress}%</span>
           </div>
         </div>
       )}
@@ -362,14 +360,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         )
       })}
 
-      {/* ─── Frame counter (subtle) ─── */}
-      {isReady && (
-        <div className="frame-indicator">
-          <span className="frame-num">{String(displayFrame).padStart(3, '0')}</span>
-          <span className="frame-sep">/</span>
-          <span className="frame-total">{TOTAL_FRAMES}</span>
-        </div>
-      )}
 
       {/* ─── Final CTA section ─── */}
       <div className="landing-cta-section" style={{
