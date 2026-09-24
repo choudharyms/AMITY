@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) => {
         navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/frames/],
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
       },
+      devOptions: {
+        enabled: true,
+      },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
     optimizeDeps: {

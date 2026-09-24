@@ -8,8 +8,11 @@ import { RegisterPage } from './pages/register-page'
 import { LoginPage } from './pages/login-page'
 import { usePilotData, useBackendHealth } from './use-pilot-data'
 import { getSavedCityId, saveCityId } from './cities'
+import { registerSW } from 'virtual:pwa-register'
 import './styles.css'
 import './landing.css'
+
+registerSW({ immediate: true })
 
 export type AppView = 'landing' | 'register' | 'login' | 'dashboard'
 
@@ -49,6 +52,7 @@ function parseViewFromLocation(): AppView {
 
   return 'landing'
 }
+
 
 function Root() {
   const [view, setView] = useState<AppView>(parseViewFromLocation)

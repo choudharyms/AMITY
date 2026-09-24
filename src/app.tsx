@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
-  MapPin, Menu, Plus, ShieldCheck
+  MapPin, Menu, Monitor, Plus, ShieldCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
 import { supabase } from '@/lib/supabase'
 import { AppSidebar, sectionNames } from '@/components/app-sidebar'
 import { ActivityFeed } from '@/components/activity-feed'
@@ -79,6 +80,9 @@ export default function App({
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
+  const [dismissDesktopPrompt, setDismissDesktopPrompt] = useState(false)
+  const [isDesktop] = useState(isDesktopBrowser)
+  const [desktopPerm, setDesktopPerm] = useState(() => typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'granted')
   const [now, setNow] = useState(Date.now())
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
 
@@ -111,6 +115,7 @@ export default function App({
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
   }, [])
+
 
   function setSection(next: Section) { updateSection(next); window.location.hash = next }
 
@@ -260,6 +265,40 @@ export default function App({
               )}
             </div>
           </div>
+
+          {isDesktop && desktopPerm === 'default' && !dismissDesktopPrompt && (
+            <div className="desktop-notification-bar">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <Monitor size={17} />
+                </div>
+                <div>
+                  <strong className="text-xs text-foreground block">Desktop Emergency Rescue Notifications</strong>
+                  <span className="text-[11px] text-muted-foreground">Enable Windows & Mac system alerts with audio chimes when urgent food rescues are posted or expire.</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                  onClick={async () => {
+                    const res = await subscribeToWebPush(cityId)
+                    if (res.success) {
+                      toast.success(res.message)
+                      setDesktopPerm('granted')
+                    } else {
+                      toast.error(res.message)
+                    }
+                  }}
+                >
+                  <Bell size={12} /> Enable Desktop Alerts
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setDismissDesktopPrompt(true)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
 
           {callback.error && (
             <Alert variant="destructive" className="mb-5">

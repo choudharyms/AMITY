@@ -11,20 +11,62 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray
 }
 
+export function isDesktopBrowser(): boolean {
+  if (typeof window === 'undefined') return false
+  return !/Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+}
+
+export function playRescueAlertChime() {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    // Crisp two-tone rescue emergency chime: D5 (587Hz) -> A5 (880Hz)
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15)
+    gain.gain.setValueAtTime(0.2, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.45)
+  } catch {
+    // Blocked if no user gesture yet
+  }
+}
+
+async function getOrRegisterSW(): Promise<ServiceWorkerRegistration> {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Service workers not supported in this browser')
+  }
+  let reg = await navigator.serviceWorker.getRegistration()
+  if (!reg) {
+    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  }
+  return navigator.serviceWorker.ready
+}
+
 export interface PushStatus {
   supported: boolean
   permission: NotificationPermission | 'unsupported'
   subscribed: boolean
   endpoint: string | null
+  isDesktop: boolean
 }
 
 export async function getPushNotificationStatus(): Promise<PushStatus> {
+  const isDesktop = isDesktopBrowser()
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
     return {
       supported: false,
       permission: 'unsupported',
       subscribed: false,
       endpoint: null,
+      isDesktop,
     }
   }
 
@@ -33,11 +75,13 @@ export async function getPushNotificationStatus(): Promise<PushStatus> {
   let endpoint: string | null = null
 
   try {
-    const reg = await navigator.serviceWorker.ready
-    const subscription = await reg.pushManager.getSubscription()
-    if (subscription) {
-      subscribed = true
-      endpoint = subscription.endpoint
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (reg) {
+      const subscription = await reg.pushManager.getSubscription()
+      if (subscription) {
+        subscribed = true
+        endpoint = subscription.endpoint
+      }
     }
   } catch (err) {
     console.warn('[Push] Error checking existing subscription:', err)
@@ -48,6 +92,7 @@ export async function getPushNotificationStatus(): Promise<PushStatus> {
     permission,
     subscribed,
     endpoint,
+    isDesktop,
   }
 }
 
@@ -56,13 +101,13 @@ export async function subscribeToWebPush(cityId: string = 'blr'): Promise<{ succ
     return { success: false, message: 'Web Push notifications are not supported in this browser.' }
   }
 
-  // Request browser permission
+  // Request browser/system notification permission
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') {
     return {
       success: false,
       message: perm === 'denied'
-        ? 'Notifications were blocked in your browser settings. Please allow notifications in site settings.'
+        ? 'Notifications were blocked in your desktop browser settings. Please allow notifications for this site.'
         : 'Notification permission was dismissed.',
     }
   }
@@ -74,7 +119,7 @@ export async function subscribeToWebPush(cityId: string = 'blr'): Promise<{ succ
       return { success: false, message: 'Server did not return a VAPID public key.' }
     }
 
-    const reg = await navigator.serviceWorker.ready
+    const reg = await getOrRegisterSW()
     let subscription = await reg.pushManager.getSubscription()
 
     if (!subscription) {
@@ -94,13 +139,19 @@ export async function subscribeToWebPush(cityId: string = 'blr'): Promise<{ succ
       }),
     })
 
-    // Show initial test confirmation
+    // Play chime and show initial confirmation
+    playRescueAlertChime()
     sendBrowserNotification(
-      '🌿 AaharSetu Push Notifications Activated',
-      'You are now connected to real-time emergency food rescue alerts.'
+      '🌿 AaharSetu Desktop Alerts Activated',
+      'Your desktop is connected. Real-time emergency food rescues and expiry notices will appear here.'
     )
 
-    return { success: true, message: 'Web Push notifications activated successfully!' }
+    return {
+      success: true,
+      message: isDesktopBrowser()
+        ? 'Desktop push notifications & system alerts activated successfully!'
+        : 'Web Push notifications activated successfully!',
+    }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error('[Push] Subscription failed:', err)
@@ -114,15 +165,17 @@ export async function unsubscribeFromWebPush(): Promise<{ success: boolean; mess
   }
 
   try {
-    const reg = await navigator.serviceWorker.ready
-    const subscription = await reg.pushManager.getSubscription()
-    if (subscription) {
-      const endpoint = subscription.endpoint
-      await subscription.unsubscribe()
-      await apiRequest('/api/push/unsubscribe', {
-        method: 'POST',
-        body: JSON.stringify({ endpoint }),
-      })
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (reg) {
+      const subscription = await reg.pushManager.getSubscription()
+      if (subscription) {
+        const endpoint = subscription.endpoint
+        await subscription.unsubscribe()
+        await apiRequest('/api/push/unsubscribe', {
+          method: 'POST',
+          body: JSON.stringify({ endpoint }),
+        })
+      }
     }
     return { success: true, message: 'Unsubscribed from push notifications.' }
   } catch (err) {
@@ -133,18 +186,20 @@ export async function unsubscribeFromWebPush(): Promise<{ success: boolean; mess
 
 export function sendBrowserNotification(title: string, body: string, icon = '/icon.svg') {
   if (typeof window === 'undefined' || !('Notification' in window)) return
+  playRescueAlertChime()
   if (Notification.permission === 'granted') {
     try {
       new Notification(title, {
         body,
         icon,
         badge: icon,
-        tag: 'aaharsetu-local-alert',
+        tag: 'aaharsetu-desktop-alert',
+        silent: false,
       })
     } catch {
-      // Fallback for mobile browser where Notification() constructor might throw in document context
+      // Fallback for context where direct Notification constructor requires worker
       navigator.serviceWorker?.ready.then((reg) => {
-        reg.showNotification(title, { body, icon, tag: 'aaharsetu-local-alert' })
+        reg.showNotification(title, { body, icon, tag: 'aaharsetu-desktop-alert' })
       })
     }
   }
@@ -152,22 +207,28 @@ export function sendBrowserNotification(title: string, body: string, icon = '/ic
 
 export async function triggerTestPush(cityId?: string): Promise<{ success: boolean; message: string }> {
   try {
+    // Play alert chime
+    playRescueAlertChime()
+
+    // Trigger local desktop notification immediately
+    sendBrowserNotification(
+      '🚨 Urgent Rescue Notice (Desktop Test)',
+      'Cooked meals (30 kg) need immediate dispatch before safety window closes at 22:30 UTC.'
+    )
+
+    // Also trigger server webpush broadcast
     const res = await apiRequest<{ web_push_sent: number; telegram?: { sent?: boolean } }>('/api/push/test', {
       method: 'POST',
       body: JSON.stringify({
-        title: '🚨 Urgent Rescue Notice (Test)',
-        body: 'Cooked rice & sambar (25 kg) needs dispatch before 22:30 UTC safety threshold.',
+        title: '🚨 Urgent Rescue Notice (Desktop Test)',
+        body: 'Cooked meals (30 kg) need immediate dispatch before safety window closes at 22:30 UTC.',
         city_id: cityId,
       }),
     })
-    // Also trigger local notification for immediate feedback
-    sendBrowserNotification(
-      '🚨 Urgent Rescue Notice (Test)',
-      'Cooked rice & sambar (25 kg) needs dispatch before 22:30 UTC safety threshold.'
-    )
+
     return {
       success: true,
-      message: `Test push sent! (${res.web_push_sent} subscribers reached)`,
+      message: `Desktop notification triggered! (${res.web_push_sent} subscribers received broadcast)`,
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
