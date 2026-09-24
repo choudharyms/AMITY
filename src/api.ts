@@ -65,3 +65,46 @@ export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'd
 export function fetchRouteComparison(cityId: string): Promise<RouteComparison> {
   return apiRequest(`/api/routes/compare?city_id=${encodeURIComponent(cityId)}`)
 }
+
+export interface ProfileUpdate {
+  display_name?: string
+  organization?: string
+  phone?: string
+  fssai_license?: string
+  area?: string
+  active_city_id?: string
+}
+
+export async function updateProfile(updates: ProfileUpdate): Promise<void> {
+  await apiRequest('/api/me', { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export interface DriverRegistration {
+  name: string; area?: string; latitude: number; longitude: number;
+  vehicle?: string; capacity_kg?: number; phone?: string;
+}
+export interface RecipientRegistration {
+  name: string; area: string; latitude: number; longitude: number;
+  capacity_kg?: number; need_level?: number; accepts?: string[];
+  open_hours?: string; phone?: string;
+}
+export interface DonorRegistration {
+  name: string; area: string; latitude: number; longitude: number;
+  organization?: string; fssai_license?: string; phone?: string;
+}
+
+export function registerDriver(payload: DriverRegistration, cityId: string): Promise<{ id: string }> {
+  return apiRequest(`/api/register/driver?city_id=${encodeURIComponent(cityId)}`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+export function registerRecipient(payload: RecipientRegistration, cityId: string): Promise<{ id: string }> {
+  return apiRequest(`/api/register/recipient?city_id=${encodeURIComponent(cityId)}`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+export function registerDonorProfile(payload: DonorRegistration, cityId: string): Promise<{ id: string }> {
+  return apiRequest(`/api/register/donor?city_id=${encodeURIComponent(cityId)}`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}

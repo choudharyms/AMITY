@@ -144,4 +144,35 @@ class SupabaseGateway:
         return rows[0]
 
 
+    def register_driver(self, access_token: str, user_id: str, values: dict) -> dict:
+        rows = self._request(
+            "POST", "drivers", access_token,
+            headers={"Content-Type": "application/json", "Prefer": "return=representation"},
+            json={**values, "user_id": user_id, "is_synthetic": False},
+        )
+        if not rows:
+            raise HTTPException(status_code=502, detail="Driver profile could not be created")
+        return rows[0]
+
+    def register_recipient(self, access_token: str, user_id: str, values: dict) -> dict:
+        rows = self._request(
+            "POST", "recipients", access_token,
+            headers={"Content-Type": "application/json", "Prefer": "return=representation"},
+            json={**values, "user_id": user_id, "is_synthetic": False, "approved": False},
+        )
+        if not rows:
+            raise HTTPException(status_code=502, detail="Recipient profile could not be created")
+        return rows[0]
+
+    def register_donor(self, access_token: str, user_id: str, values: dict) -> dict:
+        rows = self._request(
+            "POST", "donors", access_token,
+            headers={"Content-Type": "application/json", "Prefer": "return=representation"},
+            json={**values, "user_id": user_id, "is_synthetic": False},
+        )
+        if not rows:
+            raise HTTPException(status_code=502, detail="Donor profile could not be created")
+        return rows[0]
+
+
 db = SupabaseGateway()

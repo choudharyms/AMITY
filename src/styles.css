@@ -391,3 +391,74 @@
 @media (max-width: 960px) { .heading-actions { padding-top: 0; } .heading-actions > [data-slot='badge'] { display: none; } .setup-banner p strong { display: block; } .metric-grid { grid-template-columns: repeat(2, 1fr); } .overview-middle { grid-template-columns: 1fr; } .activity-column { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } .safety-footnote { grid-column: 1 / -1; } .metric-value { font-size: 31px; } .methodology > div { grid-template-columns: 1fr; } .purpose-card { padding: 13px; } }
 @media (max-width: 760px) { .app-sidebar { position: fixed; left: -240px; z-index: 40; width: 224px; transition: left 180ms ease; } .app-sidebar.is-open { left: 0; } .mobile-sidebar-close { display: inline-flex; position: absolute; right: 8px; top: 13px; } .sidebar-backdrop { position: fixed; inset: 0; z-index: 39; background: #17271a55; backdrop-filter: blur(2px); } .mobile-menu { display: inline-flex; } .topbar { padding-inline: 13px; height: 58px; } .breadcrumb { gap: 7px; font-size: 10px; } .breadcrumb > span { display: none; } .breadcrumb > svg { display: none; } .topbar-actions { gap: 4px; } .topbar-divider { display: none; } .location-button { font-size: 9px; margin-right: 5px; } .topbar-actions > [aria-label='Safety guidelines'] { display: none; } .page-content { padding: 23px 16px 18px; } .page-heading { align-items: flex-start; gap: 14px; } .page-heading h1 { font-size: 26px; } .page-heading p { font-size: 10px; max-width: 235px; line-height: 1.7; } .heading-eyebrow { font-size: 6px; letter-spacing: 1px; } .heading-actions { padding-top: 24px; } .heading-actions [data-slot='button'] { padding-inline: 9px; font-size: 9px; height: 33px; } .heading-actions [data-slot='button'] svg { width: 12px; } .metric-grid { gap: 10px; } .metric-top { font-size: 10px; } .metric-icon { height: 27px; width: 27px; } .metric-value { font-size: 28px; } .metric-value > span { font-size: 9px; } .metric-bottom { font-size: 7px; } .metric-bottom svg { display: none; } .setup-banner { padding: 10px; gap: 8px; } .setup-banner p { font-size: 9px; line-height: 15px; } .setup-banner button { font-size: 8px; } .map-container { height: 320px; } .map-data-label { display: none; } .map-legend { gap: 20px; } .activity-column { display: flex; } .activity-panel { width: 100%; } .capacity-card { width: 100%; } .activity-list { gap: 20px; } .activity-list p { font-size: 11px; } .table-toolbar { padding-inline: 13px; } .search-box input { width: 165px; font-size: 9px; } .filter-select { font-size: 8px; } .table-footer { gap: 10px; line-height: 1.5; font-size: 7px; } .table-footer > span:last-child { text-align: right; } .page-footer { font-size: 7px; } .page-footer > span:last-child { display: none; } .network-grid { grid-template-columns: 1fr; } .dispatch-columns { grid-template-columns: 1fr; } .impact-story { padding: 23px; gap: 17px; } .impact-story > svg { flex-shrink: 0; width: 27px; } .impact-story h2 { font-size: 19px; } .impact-story p { font-size: 10px; line-height: 1.7; } .integration-row { padding: 15px; gap: 9px; flex-wrap: wrap; } .integration-row > div { min-width: 150px; } .integration-row > [data-slot='badge'] { margin-left: 44px; } .urgency-banner { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+
+/* ============================
+   ROLE-BASED UI STYLES
+   ============================ */
+
+.role-eyebrow-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; background: var(--primary); color: var(--primary-foreground); border-radius: 20px; font-size: 7px; font-weight: 700; letter-spacing: 0.06em; vertical-align: middle; }
+
+.notif-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid white; pointer-events: none; }
+
+/* Role option buttons */
+.role-option-btn { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: 11px; border: 1.5px solid var(--border); background: var(--background); text-align: left; cursor: pointer; transition: border-color 140ms, background 140ms, box-shadow 140ms; width: 100%; }
+.role-option-btn:hover { border-color: var(--primary); background: var(--secondary); }
+.role-option-btn.selected { border-color: var(--primary); background: var(--secondary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 15%, transparent); }
+.role-option-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex-shrink: 0; background: var(--primary); color: var(--primary-foreground); border-radius: 12px; }
+.role-option-text { flex: 1; }
+.role-option-text strong { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
+.role-option-text small { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 2px; line-height: 1.5; }
+
+/* Role dashboards */
+.donor-dashboard, .driver-dashboard, .recipient-dashboard { display: flex; flex-direction: column; gap: 20px; }
+.dash-welcome { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px; flex-wrap: wrap; }
+.dash-welcome-text h2 { font-size: 22px; font-weight: 700; margin-bottom: 5px; }
+.dash-welcome-text p { font-size: 13px; color: var(--muted-foreground); }
+.dash-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.dash-stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; display: flex; flex-direction: column; gap: 6px; }
+.dash-stat-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--secondary); color: var(--primary); margin-bottom: 4px; }
+.dash-stat-card strong { font-size: 24px; font-weight: 700; color: var(--foreground); }
+.dash-stat-card span { font-size: 11px; color: var(--muted-foreground); }
+.section-header-row { display: flex; align-items: center; justify-content: space-between; }
+.section-header-row h3 { font-size: 15px; font-weight: 600; }
+
+/* Donation row cards */
+.donation-list { display: flex; flex-direction: column; gap: 10px; }
+.donation-row-card { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-radius: 11px; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: border-color 130ms, box-shadow 130ms; width: 100%; text-align: left; }
+.donation-row-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px -2px color-mix(in oklch, var(--primary) 15%, transparent); }
+.donation-row-card.urgent { border-color: #f0c05a; background: #fffbf0; }
+.donation-row-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: var(--secondary); color: var(--primary); flex-shrink: 0; }
+.donation-row-info { flex: 1; min-width: 0; }
+.donation-row-info strong { display: block; font-size: 13px; font-weight: 600; }
+.donation-row-info span { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
+.donation-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Empty state */
+.empty-donor-hint { display: flex; flex-direction: column; align-items: center; padding: 36px 24px; border-radius: 14px; text-align: center; background: var(--card); border: 1px dashed var(--border); }
+
+/* FSSAI notice */
+.fssai-notice { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: 10px; background: #fef9ec; border: 1px solid #f0dc9a; font-size: 13px; }
+
+/* Capacity panel */
+.capacity-panel { padding: 18px 20px; }
+.capacity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+progress.capacity-progress.large { height: 8px; border-radius: 4px; width: 100%; margin-bottom: 12px; }
+.capacity-accepts { display: flex; flex-wrap: wrap; gap: 6px; }
+.capacity-badge-stack { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
+/* Onboarding wizard overlay */
+.onboarding-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(20,40,25,0.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.onboarding-card { background: var(--card); border-radius: 18px; padding: 36px 32px; max-width: 480px; width: 100%; box-shadow: 0 20px 60px -10px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 24px; max-height: 90vh; overflow-y: auto; }
+.onboarding-header { display: flex; align-items: flex-start; gap: 16px; }
+.onboarding-header h1 { font-size: 19px; font-weight: 700; }
+.onboarding-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: var(--muted); color: var(--muted-foreground); }
+.step.done { background: var(--secondary); color: var(--primary); }
+.step.active { background: var(--primary); color: var(--primary-foreground); }
+.step span { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: white; color: var(--primary); font-size: 9px; font-weight: 700; }
+.step.active span { background: rgba(255,255,255,0.25); color: white; }
+.onboarding-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+/* Responsive for new components */
+@media (max-width: 960px) { .dash-stats-row { grid-template-columns: repeat(2, 1fr); } .dash-welcome { flex-direction: column; } }
+@media (max-width: 600px) { .dash-stats-row { gap: 10px; } .role-option-btn { padding: 10px 12px; } .onboarding-card { padding: 24px 20px; } .donation-row-right { flex-wrap: wrap; } }
