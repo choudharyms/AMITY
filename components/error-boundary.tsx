@@ -1,6 +1,5 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AlertTriangle, RotateCcw, Home } from 'lucide-react'
 
 interface Props {
   children: ReactNode
@@ -23,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[AaharSetu ErrorBoundary caught error]:', error, errorInfo)
+    console.error('AaharSetu caught an uncaught rendering error:', error, errorInfo)
   }
 
   private handleReset = () => {
@@ -31,12 +30,14 @@ export class ErrorBoundary extends Component<Props, State> {
       localStorage.removeItem('aaharsetu_city_id')
       window.location.hash = 'overview'
     } catch { /* ignore */ }
+    this.setState({ hasError: false, error: null })
     window.location.reload()
   }
 
-  private handleGoHome = () => {
-    window.location.hash = 'landing'
+  private handleHome = () => {
     this.setState({ hasError: false, error: null })
+    window.location.hash = 'landing'
+    window.location.reload()
   }
 
   public render() {
@@ -46,24 +47,104 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-6">
-          <div className="max-w-md w-full p-6 rounded-2xl border border-destructive/20 bg-card shadow-lg text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
-              <AlertTriangle size={24} />
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at 50% 20%, #15291b 0%, #08110b 100%)',
+          color: '#f0fdf4',
+          fontFamily: "'Inter', sans-serif",
+          padding: '24px',
+        }}>
+          <div style={{
+            maxWidth: '500px',
+            width: '100%',
+            background: 'rgba(18, 38, 25, 0.85)',
+            border: '1px solid rgba(134, 239, 172, 0.2)',
+            borderRadius: '16px',
+            padding: '36px 30px',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6)',
+            textAlign: 'center',
+            backdropFilter: 'blur(12px)',
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              margin: '0 auto 20px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ef4444',
+            }}>
+              <AlertTriangle size={28} />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">Something went wrong</h2>
-              <p className="text-xs text-muted-foreground">
-                {this.state.error?.message || 'An unexpected rendering error occurred.'}
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <Button size="sm" variant="default" onClick={this.handleReset} className="gap-1.5 text-xs">
-                <RefreshCw size={13} /> Reload & Recover
-              </Button>
-              <Button size="sm" variant="outline" onClick={this.handleGoHome} className="gap-1.5 text-xs">
-                <Home size={13} /> Return to Landing
-              </Button>
+
+            <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '10px' }}>
+              Unexpected Display Issue
+            </h1>
+            <p style={{ fontSize: '13px', color: '#a7f3d0', lineHeight: 1.6, marginBottom: '24px' }}>
+              AaharSetu encountered an unexpected issue while rendering this view. Your saved preferences and credentials are safe.
+            </p>
+
+            {this.state.error && (
+              <pre style={{
+                background: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '11px',
+                color: '#f87171',
+                textAlign: 'left',
+                overflowX: 'auto',
+                marginBottom: '24px',
+                maxHeight: '120px',
+              }}>
+                {this.state.error.message}
+              </pre>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={this.handleReset}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#22c55e',
+                  color: '#052e16',
+                  border: 'none',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                <RotateCcw size={15} /> Reload Workspace
+              </button>
+              <button
+                onClick={this.handleHome}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#e2e8f0',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                <Home size={15} /> Return Home
+              </button>
             </div>
           </div>
         </div>
