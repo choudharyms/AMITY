@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
-import { Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle, MapPin, Menu, Plus, ShieldCheck } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle, MapPin, Menu, Monitor, Plus, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
 import { supabase } from '@/lib/supabase'
 import { AppSidebar, sectionNames } from '@/components/app-sidebar'
 import { AuthDialog } from '@/components/auth-dialog'
@@ -16,6 +17,7 @@ import { OverviewMetrics } from '@/components/overview-metrics'
 import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
 import { PostDonationView } from '@/components/post-donation-view'
+import { WorkspacesView } from '@/components/workspaces-view'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -28,6 +30,7 @@ import { cities } from './cities'
 
 const descriptions: Record<Section, string> = {
   overview: 'Good food. Better destinations. Let’s make every rescue count.',
+  workspaces: 'Municipal food rescue networks across India. Select an operational territory.',
   donations: 'A little surplus can make a big difference. Keep it moving.',
   dispatch: 'The right food, the right route, before the window closes.',
   recipients: 'Open doors, available capacity, and communities ready to receive.',
@@ -71,6 +74,9 @@ export default function App({
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
+  const [dismissDesktopPrompt, setDismissDesktopPrompt] = useState(false)
+  const [isDesktop] = useState(isDesktopBrowser)
+  const [desktopPerm, setDesktopPerm] = useState(() => typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'granted')
   const [now, setNow] = useState(Date.now())
   const { data: session } = useSession()
   const { profile, error: profileError, refresh: refreshProfile } = useProfile(session?.user.id)
@@ -108,7 +114,7 @@ export default function App({
   async function signOut() { if (!supabase) { toast.error('Authentication is not configured in this build.'); return } const { error } = await supabase.auth.signOut(); if (error) toast.error('Could not sign out. Try again.'); else toast.success('Signed out securely.') }
   const active = data?.donations.filter(isActive)
   const urgent = active?.filter(d => new Date(d.safe_until).getTime() > now && new Date(d.safe_until).getTime() - now < 3600000)
-  return <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><AppSidebar section={section} setSection={setSection} mobileOpen={mobile} close={() => setMobile(false)} session={session} signIn={() => setAuth(true)} signOut={signOut} activeCount={active?.length} help={() => setInfo('help')} onBackToLanding={onBackToLanding} /><div className="app-main"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Open navigation" onClick={() => setMobile(true)}><Menu /></Button><span>Workspace</span><ChevronRight size={13} />{isPostingView ? (<><button className="breadcrumb-link" onClick={() => setSection('donations')}>Donations</button><ChevronRight size={13} /><strong>Post food donation</strong></>) : <strong>{sectionNames[section]}</strong>}</div><div className="topbar-actions"><button className="location-button" onClick={() => setSection('settings')}><MapPin size={14} /><span>{city.name}, IN</span><ChevronDown size={12} /></button><span className="topbar-divider" /><Button variant="ghost" size="icon" aria-label="Safety guidelines" onClick={() => setInfo('help')}><CircleHelp /></Button><Button variant="ghost" size="icon" aria-label="View notifications" onClick={() => setInfo('notifications')}><Bell /></Button><button className="topbar-avatar" onClick={() => setAuth(true)} aria-label={session ? 'Account' : 'Sign in'}>{session ? 'RP' : <Leaf size={17} />}</button></div></header>
+  return <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><AppSidebar section={section} setSection={setSection} mobileOpen={mobile} close={() => setMobile(false)} session={session} signIn={() => setAuth(true)} signOut={signOut} activeCount={active?.length} help={() => setInfo('help')} cityId={cityId} onCityChange={onCityChange} source={source} onBackToLanding={onBackToLanding} /><div className="app-main"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Open navigation" onClick={() => setMobile(true)}><Menu /></Button><button type="button" className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-medium text-xs cursor-pointer" onClick={() => setSection('workspaces')}>Workspace</button><ChevronRight size={13} />{isPostingView ? (<><button className="breadcrumb-link" onClick={() => setSection('donations')}>Donations</button><ChevronRight size={13} /><strong>Post food donation</strong></>) : <strong>{sectionNames[section]}</strong>}</div><div className="topbar-actions"><button className="location-button" onClick={() => setSection('workspaces')} aria-label={`Current workspace: ${city.name}`}><MapPin size={14} /><span>{city.name}, IN</span><ChevronDown size={12} /></button><span className="topbar-divider" /><Button variant="ghost" size="icon" aria-label="Safety guidelines" onClick={() => setInfo('help')}><CircleHelp /></Button><Button variant="ghost" size="icon" aria-label="View notifications" onClick={() => setInfo('notifications')}><Bell /></Button><button className="topbar-avatar" onClick={() => setAuth(true)} aria-label={session ? 'Account' : 'Sign in'}>{session ? 'RP' : <Leaf size={17} />}</button></div></header>
     <main id="main-content" className="page-content">
     {isPostingView ? (
       <PostDonationView
@@ -122,10 +128,44 @@ export default function App({
     ) : (
       <>
         <div className="page-heading"><div><div className="heading-eyebrow"><span className="status-dot" />AAHARSETU · {city.name.toUpperCase()} FOOD RESCUE NETWORK</div><h1>{section === 'overview' ? 'Rescue overview' : sectionNames[section]}</h1><p>{descriptions[section]}</p></div><div className="heading-actions"><Badge variant="outline">{source === 'supabase' ? 'Supabase Live' : source === 'offline' ? 'Synthetic demo' : 'Sign in for live data'}</Badge><Button size="lg" onClick={openPostDonation}><Plus data-icon="inline-start" />Post a donation</Button></div></div>
+        {isDesktop && desktopPerm === 'default' && !dismissDesktopPrompt && (
+          <div className="desktop-notification-bar">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                <Monitor size={17} />
+              </div>
+              <div>
+                <strong className="text-xs text-foreground block">Desktop Emergency Rescue Notifications</strong>
+                <span className="text-[11px] text-muted-foreground">Enable Windows & Mac system alerts with audio chimes when urgent food rescues are posted or expire.</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                onClick={async () => {
+                  const res = await subscribeToWebPush(cityId)
+                  if (res.success) {
+                    toast.success(res.message)
+                    setDesktopPerm('granted')
+                  } else {
+                    toast.error(res.message)
+                  }
+                }}
+              >
+                <Bell size={12} /> Enable Desktop Alerts
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setDismissDesktopPrompt(true)}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
         {callback.error && <Alert variant="destructive" className="mb-5"><AlertTitle>Confirmation link unavailable</AlertTitle><AlertDescription>This link may have expired or already been used. Please try signing in or request a new confirmation.</AlertDescription></Alert>}
         {callback.isLoading && <p className="flex gap-2 items-center mb-4"><LoaderCircle size={16} className="animate-spin" />Confirming your email…</p>}
         {!data && <div className="setup-banner"><span className="setup-banner-icon"><Database size={16} /></span><p><strong>{error?.message ?? 'Connect to the live rescue network'}</strong><span>Sign in to load city-scoped records. Demo locations are never substituted for live operational data.</span></p><button onClick={() => error?.message.includes('Sign in') ? setAuth(true) : setSection('settings')}>{error?.message.includes('Sign in') ? 'Sign in' : 'View setup'}<ChevronRight size={14} /></button></div>}
         {section === 'overview' && <div className="overview-content"><OverviewMetrics data={data} /><div className="overview-middle"><RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} /><ActivityFeed data={data} navigate={setSection} /></div>{!!urgent?.length && <div className="urgency-banner"><ShieldCheck size={17} /><p><strong>{urgent.length} {urgent.length === 1 ? 'rescue needs' : 'rescues need'} attention.</strong> Less than an hour remains in the safe window.</p><Button variant="ghost" size="sm" onClick={() => setSection('dispatch')}>Review rescues<ChevronRight data-icon="inline-end" /></Button></div>}<DonationsTable data={data} now={now} openDonation={setSelected} viewAll={() => setSection('donations')} /></div>}
+        {section === 'workspaces' && <WorkspacesView cityId={cityId} onCityChange={onCityChange ?? (() => {})} data={data} source={source} />}
         {section === 'donations' && <DonationsTable data={data} now={now} full openDonation={setSelected} viewAll={() => {}} onPostDonation={openPostDonation} />}
         {section === 'dispatch' && <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />}
         {section === 'recipients' && <RecipientView data={data} />}
@@ -139,7 +179,52 @@ export default function App({
     <AuthDialog open={auth} onOpenChange={setAuth} cityId={cityId} />
     <DonationDialog donation={selected} data={data} now={now} close={() => setSelected(null)} />
     <DonationForm open={posting} data={data} cityId={cityId} refresh={refresh ?? (() => {})} onClose={() => setPosting(false)} />
-    <Dialog open={info !== null} onOpenChange={open => { if (!open) setInfo(null) }}><DialogContent className="sm:max-w-lg p-6"><DialogHeader><DialogTitle>{info === 'help' ? 'Safe food. Responsible rescues.' : 'Your rescue updates'}</DialogTitle><DialogDescription>{info === 'help' ? 'Pilot coordination rules, not a substitute for trained food-safety assessment.' : 'Important changes across your rescue network.'}</DialogDescription></DialogHeader>{info === 'help' ? <div className="help-content"><p><strong>Never dispatch after the safe window.</strong> Preparation time, temperature, condition, and handling time must all be checked.</p><p><strong>License collected, not verified.</strong> A recorded FSSAI number is not proof of compliance.</p><p><strong>Synthetic means synthetic.</strong> Pilot locations, people, and food records are demonstration inputs. Only synthetic text may go to AI services.</p><a href="https://sharefood.eatrightindia.gov.in/guidance-for-fresh-cooked-food.html" target="_blank" rel="noreferrer">Read IFSA food-safety guidance ↗</a></div> : <div className="help-content">{urgent?.length ? urgent.map(d => <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}><ClockNotice /><span>{d.item} needs attention before its safe window closes.</span><ChevronRight size={15} /></button>) : <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>}</div>}</DialogContent></Dialog>
+    <Dialog open={info !== null} onOpenChange={open => { if (!open) setInfo(null) }}>
+      <DialogContent className="sm:max-w-lg p-6">
+        <DialogHeader>
+          <DialogTitle>{info === 'help' ? 'Safe food. Responsible rescues.' : 'Your rescue updates'}</DialogTitle>
+          <DialogDescription>
+            {info === 'help'
+              ? 'Pilot coordination rules, not a substitute for trained food-safety assessment.'
+              : 'Important changes across your rescue network.'}
+          </DialogDescription>
+        </DialogHeader>
+        {info === 'help' ? (
+          <div className="help-content">
+            <p><strong>Never dispatch after the safe window.</strong> Preparation time, temperature, condition, and handling time must all be checked.</p>
+            <p><strong>License collected, not verified.</strong> A recorded FSSAI number is not proof of compliance.</p>
+            <p><strong>Synthetic means synthetic.</strong> Pilot locations, people, and food records are demonstration inputs. Only synthetic text may go to AI services.</p>
+            <a href="https://sharefood.eatrightindia.gov.in/guidance-for-fresh-cooked-food.html" target="_blank" rel="noreferrer">Read IFSA food-safety guidance ↗</a>
+          </div>
+        ) : (
+          <div className="help-content space-y-3">
+            {urgent?.length ? (
+              <div className="space-y-2">
+                {urgent.map(d => (
+                  <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}>
+                    <ClockNotice />
+                    <span>{d.item} needs attention before its safe window closes.</span>
+                    <ChevronRight size={15} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>
+            )}
+
+            <div className="mt-4 rounded-xl border border-border/70 bg-card/60 p-3 text-xs flex items-center justify-between gap-3">
+              <div>
+                <strong className="block text-foreground">Emergency Alerts Dispatch</strong>
+                <span className="text-[11px] text-muted-foreground">Web Push notifications and Telegram bot broadcasts.</span>
+              </div>
+              <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => { setSection('settings'); setInfo(null) }}>
+                Manage Alerts
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   </div>
 }
 function ClockNotice() { return <ShieldCheck size={18} /> }

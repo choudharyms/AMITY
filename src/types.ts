@@ -1,4 +1,4 @@
-export type Section = 'overview' | 'donations' | 'dispatch' | 'recipients' | 'drivers' | 'impact' | 'settings'
+export type Section = 'overview' | 'workspaces' | 'donations' | 'dispatch' | 'recipients' | 'drivers' | 'impact' | 'settings'
 export type RescueStatus = 'posted' | 'matched' | 'accepted' | 'picked_up' | 'delivered' | 'expired' | 'cancelled'
 export type Category = 'cooked_hot' | 'cooked_cold' | 'packaged' | 'produce' | 'bakery'
 export interface Donor {

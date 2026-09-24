@@ -18,8 +18,12 @@ export default defineConfig(({ mode }) => {
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        importScripts: ['/push-worker.js'],
         navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/frames/],
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+      },
+      devOptions: {
+        enabled: true,
       },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
@@ -29,7 +33,7 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL ?? env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
       'import.meta.env.VITE_SUPABASE_KEY': JSON.stringify(env.VITE_SUPABASE_KEY ?? env.SUPABASE_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''),
-      'import.meta.env.VITE_AUTH_REDIRECT': JSON.stringify(env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? ''),
+      'import.meta.env.VITE_AUTH_REDIRECT': JSON.stringify(env.VITE_AUTH_REDIRECT ?? env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? ''),
     },
     server: {
       host: '0.0.0.0', port: 3000,
