@@ -26,7 +26,7 @@ export function DonorDashboard({ data, now, profile, onPost, onSelect }: Props) 
       {/* Welcome header */}
       <div className="dash-welcome panel">
         <div className="dash-welcome-text">
-          <h2>Welcome back, {profile.display_name.split(' ')[0]}.</h2>
+          <h2>Welcome back, {(profile?.display_name || 'Donor').split(' ')[0]}.</h2>
           <p>
             {active.length > 0
               ? `You have ${active.length} active donation${active.length > 1 ? 's' : ''} in the rescue pipeline.`

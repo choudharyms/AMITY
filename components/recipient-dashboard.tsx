@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { CheckCheck, Clock, HeartHandshake, MapPin, PackageCheck, ShieldCheck, Utensils } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { categoryLabels, number, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
+import { categoryLabels, number, parseAccepts, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
 import { apiRequest } from '@/src/api'
 import type { AccountProfile } from '@/src/use-profile'
 
@@ -55,7 +55,7 @@ export function RecipientDashboard({ data, now, profile, cityId, onSelect, refre
       {/* Welcome header */}
       <div className="dash-welcome panel">
         <div className="dash-welcome-text">
-          <h2>Good day, {profile.display_name.split(' ')[0]}.</h2>
+          <h2>Good day, {(profile?.display_name || 'Member').split(' ')[0]}.</h2>
           <p>
             {incomingDonations.length > 0
               ? `${incomingDonations.length} incoming rescue${incomingDonations.length > 1 ? 's' : ''} on the way.`
@@ -90,7 +90,7 @@ export function RecipientDashboard({ data, now, profile, cityId, onSelect, refre
           <progress className="capacity-progress large" value={myRecipient.reserved_kg} max={myRecipient.capacity_kg}
             aria-label="Capacity used" />
           <div className="capacity-accepts">
-            {myRecipient.accepts.map(c => <Badge key={c} variant="outline" className="text-xs">{categoryLabels[c]}</Badge>)}
+            {parseAccepts(myRecipient.accepts).map(c => <Badge key={c} variant="outline" className="text-xs">{categoryLabels[c] || c}</Badge>)}
           </div>
         </div>
       )}

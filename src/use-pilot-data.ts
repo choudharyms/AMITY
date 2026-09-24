@@ -3,7 +3,7 @@ import useSWR from 'swr'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { apiRequest } from './api'
 import { buildSeed } from './seed'
-import type { Donor, Driver, Recipient, Donation, DispatchEvent, RescueRecord, PilotData } from './types'
+import { parseAccepts, type Donor, type Driver, type Recipient, type Donation, type DispatchEvent, type RescueRecord, type PilotData } from './types'
 
 export interface BackendHealth {
   ok: boolean
@@ -18,6 +18,13 @@ export interface BackendHealth {
   cities: number
 }
 
+function normalizeRecipients(recipients: any[]): Recipient[] {
+  return (recipients || []).map(r => ({
+    ...r,
+    accepts: parseAccepts(r.accepts),
+  }))
+}
+
 export function usePilotData(cityId: string) {
   const { data, error, isLoading, mutate } = useSWR<PilotData>(
     ['pilot-data', cityId, isSupabaseConfigured],
@@ -26,6 +33,9 @@ export function usePilotData(cityId: string) {
       try {
         const apiData = await apiRequest<PilotData>(`/api/pilot-data?city_id=${encodeURIComponent(cityId)}`)
         if (apiData && (apiData.donors || apiData.donations)) {
+          if (apiData.recipients) {
+            apiData.recipients = normalizeRecipients(apiData.recipients)
+          }
           return apiData
         }
       } catch { /* proceed to direct Supabase query */ }
@@ -43,13 +53,13 @@ export function usePilotData(cityId: string) {
           ])
 
           const donors = (donorsRes.data as Donor[]) ?? []
-          const recipients = (recipientsRes.data as Recipient[]) ?? []
+          const recipients = normalizeRecipients((recipientsRes.data as any[]) ?? [])
           const drivers = (driversRes.data as Driver[]) ?? []
           const donations = (donationsRes.data as Donation[]) ?? []
           const dispatch_events = (dispatchRes.data as DispatchEvent[]) ?? []
           const records = (recordsRes.data as RescueRecord[]) ?? []
 
-          if (donors.length || donations.length) {
+          if (donors.length || donations.length || recipients.length) {
             return { donors, recipients, drivers, donations, dispatch_events, records }
           }
         } catch { /* proceed to fallback */ }
@@ -67,10 +77,9 @@ export function usePilotData(cityId: string) {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return
 
-    // Use a unique channel name per effect run to avoid re-using already-subscribed channels in React StrictMode
-    const channelName = `aaharsetu-realtime-${cityId}-${Math.random().toString(36).slice(2, 8)}`
+    const channelId = `realtime-${cityId}-${Math.random().toString(36).slice(2, 8)}`
     const channel = supabase
-      .channel(channelName)
+      .channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })

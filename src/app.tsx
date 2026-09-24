@@ -22,7 +22,9 @@ import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
 import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
+import { PostDonationView } from '@/components/post-donation-view'
 import { WorkspacesView } from '@/components/workspaces-view'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -45,8 +47,9 @@ const descriptions: Record<Section, string> = {
 }
 
 function getSection(): Section {
-  const section = window.location.hash.slice(1)
-  return Object.keys(sectionNames).includes(section) ? section as Section : 'overview'
+  const hash = window.location.hash.slice(1)
+  if (hash === 'post-donation' || hash === 'post-food-donation') return 'donations'
+  return Object.keys(sectionNames).includes(hash) ? hash as Section : 'overview'
 }
 
 /** Detect a freshly signed-up user who still has the default placeholder name */
@@ -75,6 +78,10 @@ export default function App({
   onBackToLanding?: () => void
 }) {
   const [section, updateSection] = useState<Section>(getSection)
+  const [isPostingView, setIsPostingView] = useState(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : ''
+    return hash === '#post-donation' || hash === '#post-food-donation'
+  })
   const [mobile, setMobile] = useState(false)
   const [posting, setPosting] = useState(false)
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
@@ -111,13 +118,26 @@ export default function App({
 
   useEffect(() => {
     const tick = window.setInterval(() => setNow(Date.now()), 30000)
-    const handleHash = () => updateSection(getSection())
+    const handleHash = () => {
+      const hash = window.location.hash
+      const isPost = hash === '#post-donation' || hash === '#post-food-donation'
+      setIsPostingView(isPost)
+      updateSection(getSection())
+    }
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
   }, [])
+  function setSection(next: Section) {
+    setIsPostingView(false)
+    updateSection(next)
+    window.location.hash = next
+  }
 
-
-  function setSection(next: Section) { updateSection(next); window.location.hash = next }
+  function openPostDonation() {
+    setIsPostingView(true)
+    updateSection('donations')
+    window.location.hash = 'post-donation'
+  }
 
   async function signOut() {
     if (!supabase) { toast.error('Authentication is not configured in this build.'); return }
@@ -157,7 +177,7 @@ export default function App({
       )
     }
     if (isDonor) {
-      return <DonorDashboard data={data} now={now} profile={profile} onPost={() => setPosting(true)} onSelect={setSelected} />
+      return <DonorDashboard data={data} now={now} profile={profile} onPost={openPostDonation} onSelect={setSelected} />
     }
     if (isDriver) {
       return <DriverDashboard data={data} now={now} profile={profile} cityId={cityId} onSelect={setSelected} refresh={refresh ?? (() => {})} />
@@ -212,7 +232,21 @@ export default function App({
               Workspace
             </button>
             <ChevronRight size={13} />
-            <strong>{sectionNames[section]}</strong>
+            {isPostingView ? (
+              <>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-medium text-xs cursor-pointer"
+                  onClick={() => setSection('donations')}
+                >
+                  Donations
+                </button>
+                <ChevronRight size={13} />
+                <strong>Post food donation</strong>
+              </>
+            ) : (
+              <strong>{sectionNames[section]}</strong>
+            )}
           </div>
           <div className="topbar-actions">
             <button
@@ -233,127 +267,151 @@ export default function App({
               {!!urgent?.length && <span className="notif-dot" />}
             </Button>
             <button className="topbar-avatar" onClick={session ? () => setSection('settings') : openLogin} aria-label={session ? 'Account settings' : 'Sign in'}>
-              {session && initials ? initials : session ? <Leaf size={17} /> : <Leaf size={17} />}
+              {session && initials ? initials : <Leaf size={17} />}
             </button>
           </div>
         </header>
 
         <main id="main-content" className="page-content">
-          <div className="page-heading">
-            <div>
-              <div className="heading-eyebrow">
-                <span className="status-dot" />
-                AAHARSETU · {city.name.toUpperCase()} FOOD RESCUE NETWORK
-                {profile && <span className="role-eyebrow-badge">{profile.role.toUpperCase()}</span>}
-              </div>
-              <h1>{section === 'overview'
-                ? (isDonor ? `Welcome, ${profile?.display_name.split(' ')[0]}` : 'Rescue overview')
-                : sectionNames[section]}
-              </h1>
-              <p>{descriptions[section]}</p>
-            </div>
-            <div className="heading-actions">
-              <Badge variant="outline">
-                {source === 'supabase' ? 'Supabase Live' : source === 'offline' ? 'Synthetic demo' : 'Sign in for live data'}
-              </Badge>
-              {/* Only donors see "Post a donation" */}
-              {(canPost || !session) && (
-                <Button size="lg" onClick={() => session ? setPosting(true) : openLogin()} disabled={!!session && !canPost}>
-                  <Plus data-icon="inline-start" />
-                  {session && !canPost && !isDonor ? 'Not a donor account' : 'Post a donation'}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {isDesktop && desktopPerm === 'default' && !dismissDesktopPrompt && (
-            <div className="desktop-notification-bar">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  <Monitor size={17} />
-                </div>
-                <div>
-                  <strong className="text-xs text-foreground block">Desktop Emergency Rescue Notifications</strong>
-                  <span className="text-[11px] text-muted-foreground">Enable Windows & Mac system alerts with audio chimes when urgent food rescues are posted or expire.</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                  onClick={async () => {
-                    const res = await subscribeToWebPush(cityId)
-                    if (res.success) {
-                      toast.success(res.message)
-                      setDesktopPerm('granted')
-                    } else {
-                      toast.error(res.message)
-                    }
-                  }}
-                >
-                  <Bell size={12} /> Enable Desktop Alerts
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setDismissDesktopPrompt(true)}>
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {callback.error && (
-            <Alert variant="destructive" className="mb-5">
-              <AlertTitle>Confirmation link unavailable</AlertTitle>
-              <AlertDescription>This link may have expired or already been used. Please try signing in or request a new confirmation.</AlertDescription>
-            </Alert>
-          )}
-          {callback.isLoading && (
-            <p className="flex gap-2 items-center mb-4"><LoaderCircle size={16} className="animate-spin" />Confirming your email…</p>
-          )}
-
-          {/* Sign-in / setup banner for unauthenticated users */}
-          {!data && (
-            <div className="setup-banner">
-              <span className="setup-banner-icon"><Database size={16} /></span>
-              <p>
-                <strong>{error?.message ?? 'Connect to the live rescue network'}</strong>
-                <span>Sign in to load city-scoped records. Demo locations are never substituted for live operational data.</span>
-              </p>
-              <button onClick={() => error?.message.includes('Sign in') ? openLogin() : setSection('settings')}>
-                {error?.message.includes('Sign in') ? 'Sign in' : 'View setup'}
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
-
-          {/* Section routing */}
-          {section === 'overview' && renderOverview()}
-          {section === 'workspaces' && (
-            <WorkspacesView
-              cityId={cityId}
-              onCityChange={onCityChange ?? (() => {})}
+          {isPostingView ? (
+            <PostDonationView
               data={data}
-              source={source}
+              cityId={cityId}
+              profile={profile}
+              refresh={refresh ?? (() => {})}
+              onNavigateToDonations={() => setSection('donations')}
+              onNavigateToOverview={() => setSection('overview')}
             />
-          )}
-          {section === 'donations' && <DonationsTable data={data} now={now} full openDonation={setSelected} viewAll={() => {}} />}
-          {section === 'dispatch' && (
-            <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
-          )}
-          {section === 'recipients' && <RecipientView data={data} />}
-          {section === 'drivers' && <DriverView data={data} onDispatch={() => setSection('dispatch')} />}
-          {section === 'impact' && <ImpactView data={data} />}
-          {section === 'settings' && (
-            <SettingsView
-              source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}
-              accountEmail={session?.user.email} profile={profile} profileError={profileError}
-              refreshProfile={refreshProfile}
-            />
-          )}
+          ) : (
+            <>
+              <div className="page-heading">
+                <div>
+                  <div className="heading-eyebrow">
+                    <span className="status-dot" />
+                    AAHARSETU · {city.name.toUpperCase()} FOOD RESCUE NETWORK
+                    {profile && <span className="role-eyebrow-badge">{profile.role.toUpperCase()}</span>}
+                  </div>
+                  <h1>{section === 'overview'
+                    ? (isDonor ? `Welcome, ${profile?.display_name.split(' ')[0]}` : 'Rescue overview')
+                    : sectionNames[section]}
+                  </h1>
+                  <p>{descriptions[section]}</p>
+                </div>
+                <div className="heading-actions">
+                  <Badge variant="outline">
+                    {source === 'supabase' ? 'Supabase Live' : source === 'offline' ? 'Synthetic demo' : 'Sign in for live data'}
+                  </Badge>
+                  {/* Post a donation button opens multi-step form */}
+                  {(canPost || !session) && (
+                    <Button size="lg" onClick={openPostDonation}>
+                      <Plus data-icon="inline-start" />
+                      Post a donation
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-          <footer className="page-footer">
-            <span><Leaf size={13} />AaharSetu (आहारसेतु) · Food Rescue Bridge</span>
-            <span>{city.name} network</span>
-          </footer>
+              {isDesktop && desktopPerm === 'default' && !dismissDesktopPrompt && (
+                <div className="desktop-notification-bar">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      <Monitor size={17} />
+                    </div>
+                    <div>
+                      <strong className="text-xs text-foreground block">Desktop Emergency Rescue Notifications</strong>
+                      <span className="text-[11px] text-muted-foreground">Enable Windows & Mac system alerts with audio chimes when urgent food rescues are posted or expire.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      onClick={async () => {
+                        const res = await subscribeToWebPush(cityId)
+                        if (res.success) {
+                          toast.success(res.message)
+                          setDesktopPerm('granted')
+                        } else {
+                          toast.error(res.message)
+                        }
+                      }}
+                    >
+                      <Bell size={12} /> Enable Desktop Alerts
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setDismissDesktopPrompt(true)}>
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {callback.error && (
+                <Alert variant="destructive" className="mb-5">
+                  <AlertTitle>Confirmation link unavailable</AlertTitle>
+                  <AlertDescription>This link may have expired or already been used. Please try signing in or request a new confirmation.</AlertDescription>
+                </Alert>
+              )}
+              {callback.isLoading && (
+                <p className="flex gap-2 items-center mb-4"><LoaderCircle size={16} className="animate-spin" />Confirming your email…</p>
+              )}
+
+              {/* Sign-in / setup banner for unauthenticated users */}
+              {!data && (
+                <div className="setup-banner">
+                  <span className="setup-banner-icon"><Database size={16} /></span>
+                  <p>
+                    <strong>{error?.message ?? 'Connect to the live rescue network'}</strong>
+                    <span>Sign in to load city-scoped records. Demo locations are never substituted for live operational data.</span>
+                  </p>
+                  <button onClick={() => error?.message.includes('Sign in') ? openLogin() : setSection('settings')}>
+                    {error?.message.includes('Sign in') ? 'Sign in' : 'View setup'}
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Section routing with per-section ErrorBoundary protection */}
+              <ErrorBoundary>
+                {section === 'overview' && renderOverview()}
+                {section === 'workspaces' && (
+                  <WorkspacesView
+                    cityId={cityId}
+                    onCityChange={onCityChange ?? (() => {})}
+                    data={data}
+                    source={source}
+                  />
+                )}
+                {section === 'donations' && (
+                  <DonationsTable
+                    data={data}
+                    now={now}
+                    full
+                    openDonation={setSelected}
+                    viewAll={() => {}}
+                    onPostDonation={openPostDonation}
+                  />
+                )}
+                {section === 'dispatch' && (
+                  <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
+                )}
+                {section === 'recipients' && <RecipientView data={data} />}
+                {section === 'drivers' && <DriverView data={data} onDispatch={() => setSection('dispatch')} />}
+                {section === 'impact' && <ImpactView data={data} />}
+                {section === 'settings' && (
+                  <SettingsView
+                    source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}
+                    accountEmail={session?.user.email} profile={profile} profileError={profileError}
+                    refreshProfile={refreshProfile}
+                  />
+                )}
+              </ErrorBoundary>
+
+              <footer className="page-footer">
+                <span><Leaf size={13} />AaharSetu (आहारसेतु) · Food Rescue Bridge</span>
+                <span>{city.name} network</span>
+              </footer>
+            </>
+          )}
         </main>
       </div>
 

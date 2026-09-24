@@ -116,7 +116,7 @@ def intake_nlp(
 def create_donation(
     intent: DonationCreate,
     city_id: str = Query(default="blr"),
-    user: Dict[str, Any] = Depends(require_roles("donor")),
+    user: Dict[str, Any] = Depends(require_roles("donor", "coordinator")),
 ):
     selected_city = require_city(city_id)
     if intent.city_id != "blr" and intent.city_id != selected_city:

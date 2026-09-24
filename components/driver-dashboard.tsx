@@ -68,7 +68,7 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
       {/* Welcome & availability toggle */}
       <div className="dash-welcome panel">
         <div className="dash-welcome-text">
-          <h2>Ready to rescue, {profile.display_name.split(' ')[0]}?</h2>
+          <h2>Ready to rescue, {(profile?.display_name || 'Driver').split(' ')[0]}?</h2>
           <p>
             {myDriver
               ? `${myDriver.vehicle} · up to ${number(myDriver.capacity_kg)} kg · ${myDriver.availability ? 'Available' : 'Unavailable'}`

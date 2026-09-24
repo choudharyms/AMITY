@@ -26,8 +26,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
+    try {
+      localStorage.removeItem('aaharsetu_city_id')
+      window.location.hash = 'overview'
+    } catch { /* ignore */ }
     this.setState({ hasError: false, error: null })
-    window.location.hash = 'overview'
     window.location.reload()
   }
 

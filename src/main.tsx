@@ -13,7 +13,17 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import './styles.css'
 import './landing.css'
 
-registerSW({ immediate: true })
+if (import.meta.env.DEV && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const reg of registrations) {
+      reg.unregister()
+    }
+  })
+}
+
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true })
+}
 
 export type AppView = 'landing' | 'register' | 'login' | 'dashboard'
 
@@ -148,7 +158,11 @@ function Root() {
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')!
+const root = (window as any).__aaharsetu_root__ || ReactDOM.createRoot(rootElement);
+(window as any).__aaharsetu_root__ = root
+
+root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <SWRConfig value={{ shouldRetryOnError: false, revalidateOnFocus: true }}>
