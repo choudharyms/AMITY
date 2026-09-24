@@ -109,7 +109,52 @@ export default function App({
     <AuthDialog open={auth} onOpenChange={setAuth} cityId={cityId} />
     <DonationDialog donation={selected} data={data} now={now} close={() => setSelected(null)} />
     <DonationForm open={posting} data={data} cityId={cityId} refresh={refresh ?? (() => {})} onClose={() => setPosting(false)} />
-    <Dialog open={info !== null} onOpenChange={open => { if (!open) setInfo(null) }}><DialogContent className="sm:max-w-lg p-6"><DialogHeader><DialogTitle>{info === 'help' ? 'Safe food. Responsible rescues.' : 'Your rescue updates'}</DialogTitle><DialogDescription>{info === 'help' ? 'Pilot coordination rules, not a substitute for trained food-safety assessment.' : 'Important changes across your rescue network.'}</DialogDescription></DialogHeader>{info === 'help' ? <div className="help-content"><p><strong>Never dispatch after the safe window.</strong> Preparation time, temperature, condition, and handling time must all be checked.</p><p><strong>License collected, not verified.</strong> A recorded FSSAI number is not proof of compliance.</p><p><strong>Synthetic means synthetic.</strong> Pilot locations, people, and food records are demonstration inputs. Only synthetic text may go to AI services.</p><a href="https://sharefood.eatrightindia.gov.in/guidance-for-fresh-cooked-food.html" target="_blank" rel="noreferrer">Read IFSA food-safety guidance ↗</a></div> : <div className="help-content">{urgent?.length ? urgent.map(d => <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}><ClockNotice /><span>{d.item} needs attention before its safe window closes.</span><ChevronRight size={15} /></button>) : <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>}</div>}</DialogContent></Dialog>
+    <Dialog open={info !== null} onOpenChange={open => { if (!open) setInfo(null) }}>
+      <DialogContent className="sm:max-w-lg p-6">
+        <DialogHeader>
+          <DialogTitle>{info === 'help' ? 'Safe food. Responsible rescues.' : 'Your rescue updates'}</DialogTitle>
+          <DialogDescription>
+            {info === 'help'
+              ? 'Pilot coordination rules, not a substitute for trained food-safety assessment.'
+              : 'Important changes across your rescue network.'}
+          </DialogDescription>
+        </DialogHeader>
+        {info === 'help' ? (
+          <div className="help-content">
+            <p><strong>Never dispatch after the safe window.</strong> Preparation time, temperature, condition, and handling time must all be checked.</p>
+            <p><strong>License collected, not verified.</strong> A recorded FSSAI number is not proof of compliance.</p>
+            <p><strong>Synthetic means synthetic.</strong> Pilot locations, people, and food records are demonstration inputs. Only synthetic text may go to AI services.</p>
+            <a href="https://sharefood.eatrightindia.gov.in/guidance-for-fresh-cooked-food.html" target="_blank" rel="noreferrer">Read IFSA food-safety guidance ↗</a>
+          </div>
+        ) : (
+          <div className="help-content space-y-3">
+            {urgent?.length ? (
+              <div className="space-y-2">
+                {urgent.map(d => (
+                  <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}>
+                    <ClockNotice />
+                    <span>{d.item} needs attention before its safe window closes.</span>
+                    <ChevronRight size={15} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>
+            )}
+
+            <div className="mt-4 rounded-xl border border-border/70 bg-card/60 p-3 text-xs flex items-center justify-between gap-3">
+              <div>
+                <strong className="block text-foreground">Emergency Alerts Dispatch</strong>
+                <span className="text-[11px] text-muted-foreground">Web Push notifications and Telegram bot broadcasts.</span>
+              </div>
+              <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => { setSection('settings'); setInfo(null) }}>
+                Manage Alerts
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   </div>
 }
 function ClockNotice() { return <ShieldCheck size={18} /> }

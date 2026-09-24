@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        importScripts: ['/push-worker.js'],
         navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/frames/],
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
       },

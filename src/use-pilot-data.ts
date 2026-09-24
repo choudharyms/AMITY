@@ -12,6 +12,8 @@ export interface BackendHealth {
   gemini: boolean
   telegram: boolean
   telegram_target: boolean
+  web_push?: boolean
+  web_push_subscribers?: number
   deployed: string
   cities: number
 }
