@@ -11,5 +11,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <title>AaharSetu — Real-Time Food Rescue Routing</title>
   </head>
-  <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
+  <body>
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var reg of registrations) { reg.update(); }
+        });
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

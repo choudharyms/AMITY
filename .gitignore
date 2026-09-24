@@ -56,3 +56,5 @@ supabase/.temp/
 # Archives & Temporary files
 *.zip
 *.ps1
+*.mp4
+scroll/

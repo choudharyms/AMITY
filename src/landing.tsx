@@ -6,7 +6,9 @@ const SCROLL_HEIGHT_MULTIPLIER = 14 // Much taller scroll = slower, more cinemat
 
 /* ─── Frame path helper ─── */
 function framePath(i: number): string {
-  return `/frames/ezgif-frame-${String(i).padStart(3, '0')}.jpg`
+  const base = import.meta.env.BASE_URL || '/'
+  const cleanBase = base.endsWith('/') ? base : `${base}/`
+  return `${cleanBase}frames/ezgif-frame-${String(i).padStart(3, '0')}.jpg`
 }
 
 /* ─── Story chapters (synced to frame ranges) ─── */
@@ -106,35 +108,107 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const rafRef = useRef<number>(0)
   const dprRef = useRef(Math.min(window.devicePixelRatio || 1, 2))
 
-  /* ─── Preload all frames ─── */
+  /* ─── Fast priority preload (immediate hero entry) ─── */
   useEffect(() => {
     let loaded = 0
+    let readyTriggered = false
     const images: HTMLImageElement[] = new Array(TOTAL_FRAMES + 1)
+    imagesRef.current = images
 
-    for (let i = 1; i <= TOTAL_FRAMES; i++) {
+    const triggerReady = () => {
+      if (!readyTriggered) {
+        readyTriggered = true
+        setIsReady(true)
+      }
+    }
+
+    // Auto-reveal within 500ms max under all conditions
+    const safetyTimer = setTimeout(() => {
+      triggerReady()
+    }, 500)
+
+    const loadFrame = (i: number, onDone?: () => void) => {
       const img = new Image()
       img.src = framePath(i)
       img.onload = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded === TOTAL_FRAMES) setIsReady(true)
+        if (i === 1 || loaded >= 2) {
+          triggerReady()
+        }
+        if (i === 1) {
+          drawFrame(1)
+        }
+        if (onDone) onDone()
       }
       img.onerror = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded === TOTAL_FRAMES) setIsReady(true)
+        triggerReady()
+        if (onDone) onDone()
       }
       images[i] = img
     }
-    imagesRef.current = images
+
+    // Priority 1: Load initial 10 frames immediately
+    for (let i = 1; i <= Math.min(10, TOTAL_FRAMES); i++) {
+      loadFrame(i)
+    }
+
+    // Priority 2: Stream remaining frames in background chunks
+    let nextFrame = 11
+    const chunkSize = 15
+
+    const queueNextChunk = () => {
+      if (nextFrame > TOTAL_FRAMES) return
+      const end = Math.min(nextFrame + chunkSize, TOTAL_FRAMES + 1)
+      let chunkRemaining = end - nextFrame
+      for (let i = nextFrame; i < end; i++) {
+        loadFrame(i, () => {
+          chunkRemaining--
+          if (chunkRemaining === 0) {
+            setTimeout(queueNextChunk, 30)
+          }
+        })
+      }
+      nextFrame = end
+    }
+
+    const bgTimer = setTimeout(queueNextChunk, 60)
+
+    return () => {
+      clearTimeout(safetyTimer)
+      clearTimeout(bgTimer)
+    }
   }, [])
 
-  /* ─── Draw frame to canvas (DPR-aware for crispness) ─── */
+  /* ─── Draw frame to canvas (DPR-aware with fallback to nearest loaded frame) ─── */
   const drawFrame = useCallback((frameNum: number) => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    const img = imagesRef.current[frameNum]
-    if (!canvas || !ctx || !img || !img.complete || !img.naturalWidth) return
+    if (!canvas || !ctx) return
+
+    // Find requested frame, or fallback to closest loaded frame
+    let img = imagesRef.current[frameNum]
+    if (!img || !img.complete || !img.naturalWidth) {
+      // Look backwards for closest loaded frame
+      for (let k = frameNum - 1; k >= 1; k--) {
+        if (imagesRef.current[k]?.complete && imagesRef.current[k]?.naturalWidth) {
+          img = imagesRef.current[k]
+          break
+        }
+      }
+      // If none backwards, search forwards
+      if (!img || !img.complete || !img.naturalWidth) {
+        for (let k = frameNum + 1; k <= TOTAL_FRAMES; k++) {
+          if (imagesRef.current[k]?.complete && imagesRef.current[k]?.naturalWidth) {
+            img = imagesRef.current[k]
+            break
+          }
+        }
+      }
+    }
+    if (!img || !img.complete || !img.naturalWidth) return
 
     const dpr = dprRef.current
     const displayW = window.innerWidth
@@ -225,6 +299,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     const fadeOut = 12
     if (f < chapter.startFrame) return 0
     if (f > chapter.endFrame) return 0
+    // Chapter 1 is the initial hero chapter — 100% visible immediately at frame 1!
+    if (chapter.startFrame === 1 && f < chapter.startFrame + fadeIn) {
+      return 1
+    }
     if (f < chapter.startFrame + fadeIn) {
       return (f - chapter.startFrame) / fadeIn
     }
@@ -239,6 +317,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     const fadeIn = 12
     if (f < chapter.startFrame) return 60
     if (f > chapter.endFrame) return -30
+    // Chapter 1 is at resting position 0 immediately
+    if (chapter.startFrame === 1 && f < chapter.startFrame + fadeIn) {
+      return 0
+    }
     if (f < chapter.startFrame + fadeIn) {
       const t = (f - chapter.startFrame) / fadeIn
       return 60 * (1 - easeOutCubic(t))
@@ -250,7 +332,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     return 1 - Math.pow(1 - t, 3)
   }
 
-  const loadProgress = Math.round((loadedCount / TOTAL_FRAMES) * 100)
+  const loadProgress = Math.min(100, Math.round((loadedCount / 3) * 100))
 
   /* ─── Progress dots ─── */
   const activeChapterIdx = chapters.findIndex(
@@ -264,7 +346,13 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     <div
       ref={containerRef}
       className="landing-root"
-      style={{ height: `${SCROLL_HEIGHT_MULTIPLIER * 100}vh` }}
+      style={{
+        height: `${SCROLL_HEIGHT_MULTIPLIER * 100}vh`,
+        backgroundImage: `url(${framePath(1)})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
     >
       {/* ─── Loading overlay ─── */}
       {!isReady && (
@@ -281,12 +369,10 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
             </div>
             <div className="loader-text">
               <span className="loader-brand">AAHARSETU</span>
-              <span className="loader-status">Preparing cinematic experience</span>
             </div>
             <div className="loader-bar-track">
               <div className="loader-bar-fill" style={{ width: `${loadProgress}%` }} />
             </div>
-            <span className="loader-pct">{loadProgress}%</span>
           </div>
         </div>
       )}
@@ -362,14 +448,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         )
       })}
 
-      {/* ─── Frame counter (subtle) ─── */}
-      {isReady && (
-        <div className="frame-indicator">
-          <span className="frame-num">{String(displayFrame).padStart(3, '0')}</span>
-          <span className="frame-sep">/</span>
-          <span className="frame-total">{TOTAL_FRAMES}</span>
-        </div>
-      )}
 
       {/* ─── Final CTA section ─── */}
       <div className="landing-cta-section" style={{

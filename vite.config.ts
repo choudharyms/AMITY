@@ -8,14 +8,19 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env }
   return {
     plugins: [react(), tailwindcss(), VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       manifest: {
         name: 'AaharSetu', short_name: 'AaharSetu',
         description: 'AaharSetu: Turn unsold food into a shelter next meal before it hits the dumpster. Food-rescue coordination for Bengaluru.',
         theme_color: '#173e2c', background_color: '#f7f8f5', display: 'standalone',
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
-      workbox: { navigateFallbackDenylist: [/^\/api/, /^\/auth/], globPatterns: ['**/*.{js,css,html,svg,woff2}'] },
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/frames/],
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+      },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
     define: {
