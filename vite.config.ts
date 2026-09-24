@@ -18,14 +18,18 @@ export default defineConfig(({ mode }) => {
       workbox: { navigateFallbackDenylist: [/^\/api/, /^\/auth/], globPatterns: ['**/*.{js,css,html,svg,woff2}'] },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
+    optimizeDeps: {
+      include: ['maplibre-gl', 'react-map-gl/maplibre'],
+    },
     define: {
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL ?? ''),
-      'import.meta.env.VITE_SUPABASE_KEY': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL ?? env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
+      'import.meta.env.VITE_SUPABASE_KEY': JSON.stringify(env.VITE_SUPABASE_KEY ?? env.SUPABASE_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''),
       'import.meta.env.VITE_AUTH_REDIRECT': JSON.stringify(env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? ''),
     },
     server: {
       host: '0.0.0.0', port: 3000,
       allowedHosts: ['.vusercontent.net', '.vercel.run', '.vercel.app', 'localhost'],
+      watch: { ignored: ['**/scratch/**', '**/.edge-temp*/**'] },
       proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } },
     },
   }

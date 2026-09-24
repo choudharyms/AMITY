@@ -28,27 +28,40 @@ export function usePilotData() {
   const { data, error, isLoading, mutate } = useSWR<PilotResult>(
     ['pilot-data', isSupabaseConfigured ? 'supabase' : 'offline'],
     async () => {
-      if (!isSupabaseConfigured || !supabase) {
-        return { data: buildSeed(), source: 'offline' as const }
-      }
+      // 1. Try FastAPI backend if running
       try {
-        const [donors, recipients, drivers, donations, dispatch_events, records] = await Promise.all([
-          query<Donor>('donors'),
-          query<Recipient>('recipients'),
-          query<Driver>('drivers'),
-          query<Donation>('donations'),
-          query<DispatchEvent>('dispatch_events'),
-          query<RescueRecord>('records'),
-        ])
-        if (!donors.length && !donations.length) {
+        const res = await fetch('/api/pilot-data')
+        if (res.ok) {
+          const apiData = await res.json()
+          if (apiData?.donors && apiData?.donations) {
+            return { data: apiData, source: 'supabase' as const }
+          }
+        }
+      } catch { /* proceed to direct Supabase query */ }
+
+      // 2. Query Supabase PostGIS directly
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const [donors, recipients, drivers, donations, dispatch_events, records] = await Promise.all([
+            query<Donor>('donors'),
+            query<Recipient>('recipients'),
+            query<Driver>('drivers'),
+            query<Donation>('donations'),
+            query<DispatchEvent>('dispatch_events'),
+            query<RescueRecord>('records'),
+          ])
+          if (donors.length || donations.length) {
+            return { data: { donors, recipients, drivers, donations, dispatch_events, records }, source: 'supabase' as const }
+          }
+        } catch {
           return { data: buildSeed(), source: 'offline' as const }
         }
-        return { data: { donors, recipients, drivers, donations, dispatch_events, records }, source: 'supabase' as const }
-      } catch {
-        return { data: buildSeed(), source: 'offline' as const }
       }
+
+      // 3. Fallback to local pilot dataset
+      return { data: buildSeed(), source: 'offline' as const }
     },
-    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 30000, fallbackData: { data: buildSeed(), source: 'offline' } },
+    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 5000 },
   )
 
   // Attach Supabase Realtime WebSocket subscription for zero-reload live sync
@@ -75,7 +88,9 @@ export function usePilotData() {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      if (supabase) {
+        supabase.removeChannel(channel)
+      }
     }
   }, [mutate])
 

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Bike, Boxes, ChevronDown, CircleHelp, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sprout, Users, X } from 'lucide-react'
+import { ArrowUpRight, Bike, Boxes, ChevronDown, CircleHelp, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sparkles, Sprout, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { Section } from '@/src/types'
@@ -13,9 +13,10 @@ const operations = [
 ] as const
 export const sectionNames: Record<Section, string> = { overview: 'Overview', donations: 'Donations', dispatch: 'Dispatch & routes', recipients: 'Recipients', drivers: 'Volunteer drivers', impact: 'Impact & reports', settings: 'Workspace settings' }
 
-export function AppSidebar({ section, setSection, mobileOpen, close, session, signIn, signOut, activeCount, help }: {
+export function AppSidebar({ section, setSection, mobileOpen, close, session, signIn, signOut, activeCount, help, onBackToLanding }: {
   section: Section; setSection: (section: Section) => void; mobileOpen: boolean; close: () => void;
   session: Session | null | undefined; signIn: () => void; signOut: () => void; activeCount?: number; help: () => void;
+  onBackToLanding?: () => void;
 }) {
   const navigate = (next: Section) => { setSection(next); close() }
   return <>
@@ -30,6 +31,7 @@ export function AppSidebar({ section, setSection, mobileOpen, close, session, si
       <nav aria-label="Workspace insights" className="sidebar-nav"><button onClick={() => navigate('impact')} className={cn('nav-item', section === 'impact' && 'active')} aria-current={section === 'impact' ? 'page' : undefined}><Sprout size={18} strokeWidth={1.7} /><span>Impact & reports</span></button><button onClick={() => navigate('settings')} className={cn('nav-item', section === 'settings' && 'active')} aria-current={section === 'settings' ? 'page' : undefined}><Settings2 size={18} strokeWidth={1.7} /><span>Workspace settings</span></button></nav>
       <div className="sidebar-spacer" />
       <div className="purpose-card"><span className="purpose-icon"><HeartHandshake size={22} strokeWidth={1.5} /></span><h3>Less waste.<br />More possibility.</h3><p>Every rescue is a small act<br />with a lasting impact.</p><button onClick={() => navigate('impact')}>Explore your impact <ArrowUpRight size={15} /></button></div>
+      {onBackToLanding && <button className="help-link mb-1" onClick={onBackToLanding}><Sparkles size={17} />Interactive story / Landing<ArrowUpRight size={13} /></button>}
       <button className="help-link" onClick={help}><CircleHelp size={17} />Help & safety guidelines<ArrowUpRight size={13} /></button>
       <div className="sidebar-profile"><span className="profile-avatar">{session ? <Users size={18} /> : <ShieldCheck size={19} />}</span><button onClick={signIn} className="profile-text"><strong>{session ? 'Rescue partner' : 'Pilot visitor'}</strong><small>{session ? 'Signed in securely' : 'Sign in to participate'}</small></button>{session && <Button variant="ghost" size="icon-sm" aria-label="Sign out" onClick={signOut}><LogOut /></Button>}</div>
     </aside>

@@ -1,36 +1,922 @@
-import { useRef, useState } from 'react'
-import Map, { Marker, NavigationControl, Popup, type MapRef } from 'react-map-gl/maplibre'
-import { Bike, Expand, HeartHandshake, LocateFixed, MapPin, Store } from 'lucide-react'
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import MapGL, { Layer, Marker, NavigationControl, Popup, Source, type MapRef, type ViewStateChangeEvent } from 'react-map-gl/maplibre'
+import * as maplibregl from 'maplibre-gl'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+// Ensure MapLibre Web Worker loads correctly under Vite
+if (typeof window !== 'undefined' && typeof (maplibregl as any).setWorkerUrl === 'function') {
+  ;(maplibregl as any).setWorkerUrl(workerUrl)
+}
+import {
+  Bike,
+  Building2,
+  Compass,
+  Expand,
+  HeartHandshake,
+  Layers,
+  LocateFixed,
+  MapPin,
+  Moon,
+  Navigation,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Store,
+  Sun,
+  UtensilsCrossed,
+  X,
+  Zap,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import type { PilotData } from '@/src/types'
+import type { Donor, Driver, PilotData, Recipient, Donation } from '@/src/types'
+import { getRoadRoute } from '@/lib/routing'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-export function RescueMap({ data, expanded = false, onExpand }: { data?: PilotData; expanded?: boolean; onExpand?: () => void }) {
-  const map = useRef<MapRef>(null)
-  const [popup, setPopup] = useState<{ name: string; longitude: number; latitude: number; type: string } | null>(null)
-  const [failed, setFailed] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [fallback, setFallback] = useState(false)
-  const tileStyle = fallback ? {
+// Immutable tile styles defined at module scope to avoid re-renders & re-parsing
+const THEME_STYLES = {
+  // Standard OpenStreetMap - 100% reliable free community raster map
+  osm: {
     version: 8 as const,
-    sources: { osm: { type: 'raster' as const, tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors', maxzoom: 19 } },
-    layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
-  } : 'https://tiles.openfreemap.org/styles/positron'
-  return <section className="panel map-panel" aria-label="Bengaluru rescue network map">
-    <div className="panel-header"><div className="flex items-center gap-2"><h2>Rescue network</h2><Badge variant="secondary">Bengaluru</Badge></div><div className="flex items-center gap-2"><span className="map-data-label"><i className={data ? 'status-dot' : 'status-dot muted'} />{data ? 'Pilot locations' : 'Awaiting pilot data'}</span>{onExpand && <Button variant="ghost" size="icon-sm" onClick={onExpand} aria-label={expanded ? 'Collapse map' : 'Expand map'}><Expand /></Button>}</div></div>
-    <div className={expanded ? 'map-container expanded' : 'map-container'}>
-      <Map ref={map} initialViewState={{ longitude: 77.598, latitude: 12.9716, zoom: 11.65 }} mapStyle={tileStyle} attributionControl={{ compact: true }} style={{ width: '100%', height: '100%' }} onLoad={() => { setLoaded(true); setFailed(false) }} onError={() => { if (!loaded) setFailed(true) }}>
-        <NavigationControl position="bottom-right" showCompass={false} />
-        {data?.donors.map(d => <Marker key={d.id} longitude={d.longitude} latitude={d.latitude}><button className="map-marker donor" aria-label={`Donor: ${d.name}`} onClick={() => setPopup({ ...d, type: 'Synthetic donor' })}><Store size={15} /></button></Marker>)}
-        {data?.recipients.map(r => <Marker key={r.id} longitude={r.longitude} latitude={r.latitude}><button className="map-marker recipient" aria-label={`Recipient: ${r.name}`} onClick={() => setPopup({ ...r, type: 'Synthetic recipient' })}><HeartHandshake size={15} /></button></Marker>)}
-        {data?.drivers.filter(d => d.availability).map(d => <Marker key={d.id} longitude={d.longitude} latitude={d.latitude}><button className="map-marker driver" aria-label={`Driver: ${d.name}`} onClick={() => setPopup({ ...d, type: 'Synthetic volunteer · last recorded location' })}><Bike size={15} /></button></Marker>)}
-        {popup && <Popup longitude={popup.longitude} latitude={popup.latitude} onClose={() => setPopup(null)} closeOnClick={false} offset={20}><div className="map-popup"><strong>{popup.name}</strong><p>{popup.type}</p></div></Popup>}
-      </Map>
-      {!loaded && <div className="map-loading"><MapPin size={22} /><span>{failed ? 'Map tiles could not be loaded' : 'Finding our way around Bengaluru…'}</span>{failed && <Button variant="outline" onClick={() => { setFallback(true); setFailed(false) }}>Try OpenStreetMap</Button>}</div>}
-      <div className="map-location-chip"><MapPin size={14} /><span>Bengaluru, Karnataka</span></div>
-      <button className="map-recenter" aria-label="Recenter on Bengaluru" onClick={() => map.current?.flyTo({ center: [77.598, 12.9716], zoom: 11.65, duration: 600 })}><LocateFixed size={17} /></button>
-    </div>
-    <div className="map-legend"><span><i className="legend-dot donor" />Donors</span><span><i className="legend-dot recipient" />Recipients</span><span><i className="legend-dot driver" />Available drivers</span><span className="legend-note">{data ? 'Synthetic locations · not live GPS' : 'No simulated locations displayed'}</span></div>
-  </section>
+    sources: {
+      osm: {
+        type: 'raster' as const,
+        tiles: [
+          'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        ],
+        tileSize: 256,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+        maxzoom: 19,
+      },
+    },
+    layers: [{ id: 'osm-tiles', type: 'raster' as const, source: 'osm' }],
+  },
+  // Humanitarian OpenStreetMap (HOT) - High visibility relief and rescue roads
+  hot: {
+    version: 8 as const,
+    sources: {
+      hot: {
+        type: 'raster' as const,
+        tiles: [
+          'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+          'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        ],
+        tileSize: 256,
+        attribution: '© OpenStreetMap contributors, Humanitarian OpenStreetMap Team',
+        maxzoom: 19,
+      },
+    },
+    layers: [{ id: 'hot-tiles', type: 'raster' as const, source: 'hot' }],
+  },
+  // OpenFreeMap Dark - Free open vector dark theme (no API key required)
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+  // OpenFreeMap Positron - Clean minimal vector map (no API key required)
+  positron: 'https://tiles.openfreemap.org/styles/positron',
 }
+
+type MapThemeKey = 'osm' | 'hot' | 'dark' | 'positron'
+type FilterCategory = 'all' | 'donors' | 'recipients' | 'drivers' | 'corridors'
+
+interface UnifiedPoint {
+  id: string
+  name: string
+  area: string
+  latitude: number
+  longitude: number
+  kind: 'donor' | 'recipient' | 'driver'
+  activeRescues?: number
+  capacityAvailable?: number
+  capacityTotal?: number
+  vehicle?: string
+  isAvailable?: boolean
+  isOpen?: boolean
+  urgent?: boolean
+}
+
+interface MapCluster {
+  id: string
+  latitude: number
+  longitude: number
+  count: number
+  donors: number
+  recipients: number
+  drivers: number
+  points: UnifiedPoint[]
+}
+
+const BENGALURU_CENTER = { longitude: 77.598, latitude: 12.9716, zoom: 11.75 }
+
+export const RescueMap = memo(function RescueMap({
+  data,
+  expanded = false,
+  onExpand,
+}: {
+  data?: PilotData
+  expanded?: boolean
+  onExpand?: () => void
+}) {
+  const mapRef = useRef<MapRef>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Map state
+  const [currentZoom, setCurrentZoom] = useState(11.75)
+  const [selectedPoint, setSelectedPoint] = useState<UnifiedPoint | null>(null)
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [isLocating, setIsLocating] = useState(false)
+  const [themeMode, setThemeMode] = useState<MapThemeKey>('osm')
+  const [activeFilter, setActiveFilter] = useState<FilterCategory>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [showCorridors, setShowCorridors] = useState(true)
+  const [roadCorridors, setRoadCorridors] = useState<Record<string, [number, number][]>>({})
+
+  // Watchdog timer: If loading takes longer than 4.5 seconds, mark failed so user can switch or see fallback
+  useEffect(() => {
+    if (!loaded) {
+      const timer = setTimeout(() => {
+        if (!loaded) {
+          console.warn('[AaharSetu Map] Vector tile load taking longer than expected. Enabling fallback option.')
+          setFailed(true)
+        }
+      }, 4500)
+      return () => clearTimeout(timer)
+    }
+  }, [loaded])
+
+  // Auto-resize map when expanded state changes or window resizes
+  useEffect(() => {
+    if (!containerRef.current) return
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize()
+      }
+    })
+    resizeObserver.observe(containerRef.current)
+    return () => resizeObserver.disconnect()
+  }, [])
+
+  // Collect active rescue urgent deadlines
+  const urgentDonorIds = useMemo(() => {
+    if (!data?.donations) return new Set<string>()
+    const now = Date.now()
+    const set = new Set<string>()
+    data.donations.forEach(d => {
+      if (d.status === 'posted' || d.status === 'matched') {
+        const remaining = new Date(d.safe_until).getTime() - now
+        if (remaining > 0 && remaining < 3600000) {
+          set.add(d.donor_id)
+        }
+      }
+    })
+    return set
+  }, [data?.donations])
+
+  // Count active donations per donor
+  const activeDonationsByDonor = useMemo(() => {
+    const map = new Map<string, number>()
+    data?.donations.forEach(d => {
+      if (d.status === 'posted' || d.status === 'matched' || d.status === 'accepted') {
+        map.set(d.donor_id, (map.get(d.donor_id) ?? 0) + 1)
+      }
+    })
+    return map
+  }, [data?.donations])
+
+  // Normalized Unified Points
+  const allPoints = useMemo<UnifiedPoint[]>(() => {
+    if (!data) return []
+    const points: UnifiedPoint[] = []
+
+    // Donors
+    data.donors.forEach(d => {
+      points.push({
+        id: d.id,
+        name: d.name,
+        area: d.area,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        kind: 'donor',
+        activeRescues: activeDonationsByDonor.get(d.id) ?? 0,
+        urgent: urgentDonorIds.has(d.id),
+      })
+    })
+
+    // Recipients
+    data.recipients.forEach(r => {
+      points.push({
+        id: r.id,
+        name: r.name,
+        area: r.area,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        kind: 'recipient',
+        capacityAvailable: Math.max(0, r.capacity_kg - r.reserved_kg),
+        capacityTotal: r.capacity_kg,
+        isOpen: r.is_open && r.approved,
+      })
+    })
+
+    // Available Drivers
+    data.drivers.forEach(dr => {
+      points.push({
+        id: dr.id,
+        name: dr.name,
+        area: 'On Patrol',
+        latitude: dr.latitude,
+        longitude: dr.longitude,
+        kind: 'driver',
+        vehicle: dr.vehicle,
+        isAvailable: dr.availability,
+      })
+    })
+
+    return points
+  }, [data, activeDonationsByDonor, urgentDonorIds])
+
+  // Filtered Points according to Category Tabs
+  const filteredPoints = useMemo(() => {
+    return allPoints.filter(p => {
+      if (activeFilter === 'donors') return p.kind === 'donor'
+      if (activeFilter === 'recipients') return p.kind === 'recipient'
+      if (activeFilter === 'drivers') return p.kind === 'driver' && p.isAvailable
+      return true
+    })
+  }, [allPoints, activeFilter])
+
+  // Search Results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase().trim()
+    return allPoints.filter(p =>
+      p.name.toLowerCase().includes(q) || p.area.toLowerCase().includes(q)
+    ).slice(0, 6)
+  }, [allPoints, searchQuery])
+
+  // Smart Dynamic Clustering Algorithm
+  // At zoom < 12.8, markers closer than proximity threshold are clustered to keep the view clean
+  const { clusters, unclusteredPoints } = useMemo(() => {
+    if (currentZoom >= 12.8 || filteredPoints.length === 0) {
+      return { clusters: [] as MapCluster[], unclusteredPoints: filteredPoints }
+    }
+
+    // Adaptive cluster distance threshold based on current zoom
+    const threshold = 0.08 / Math.pow(2, currentZoom - 10)
+    const visited = new Set<string>()
+    const calculatedClusters: MapCluster[] = []
+    const singlePoints: UnifiedPoint[] = []
+
+    for (let i = 0; i < filteredPoints.length; i++) {
+      const p1 = filteredPoints[i]
+      if (visited.has(p1.id)) continue
+
+      const group: UnifiedPoint[] = [p1]
+      visited.add(p1.id)
+
+      for (let j = i + 1; j < filteredPoints.length; j++) {
+        const p2 = filteredPoints[j]
+        if (visited.has(p2.id)) continue
+
+        const dist = Math.hypot(p1.latitude - p2.latitude, p1.longitude - p2.longitude)
+        if (dist <= threshold) {
+          group.push(p2)
+          visited.add(p2.id)
+        }
+      }
+
+      if (group.length > 1) {
+        const avgLat = group.reduce((sum, item) => sum + item.latitude, 0) / group.length
+        const avgLng = group.reduce((sum, item) => sum + item.longitude, 0) / group.length
+        calculatedClusters.push({
+          id: `cluster-${p1.id}-${group.length}`,
+          latitude: avgLat,
+          longitude: avgLng,
+          count: group.length,
+          donors: group.filter(g => g.kind === 'donor').length,
+          recipients: group.filter(g => g.kind === 'recipient').length,
+          drivers: group.filter(g => g.kind === 'driver').length,
+          points: group,
+        })
+      } else {
+        singlePoints.push(p1)
+      }
+    }
+
+    return { clusters: calculatedClusters, unclusteredPoints: singlePoints }
+  }, [filteredPoints, currentZoom])
+
+interface CorridorFeature {
+  type: 'Feature'
+  geometry: {
+    type: 'LineString'
+    coordinates: [number, number][]
+  }
+  properties: {
+    id: string
+    item: string
+    qty_kg: number
+    status: string
+  }
+}
+
+  // Fetch real-world street network routes via OSRM for active rescue corridors
+  useEffect(() => {
+    if (!data?.donations || !showCorridors) return
+    let isMounted = true
+
+    const activeDonations = data.donations.filter(
+      d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
+    )
+    const donorMap = new Map(data.donors.map(d => [d.id, d]))
+    const recipientMap = new Map(data.recipients.map(r => [r.id, r]))
+    const driverMap = new Map(data.drivers.map(dr => [dr.id, dr]))
+
+    activeDonations.forEach(donation => {
+      const donor = donorMap.get(donation.donor_id)
+      const recipient = donation.recipient_id ? recipientMap.get(donation.recipient_id) : null
+      const driver = donation.driver_id ? driverMap.get(donation.driver_id) : null
+
+      if (donor && recipient) {
+        const waypoints: [number, number][] = []
+        if (driver) waypoints.push([driver.longitude, driver.latitude])
+        waypoints.push([donor.longitude, donor.latitude])
+        waypoints.push([recipient.longitude, recipient.latitude])
+
+        getRoadRoute(waypoints).then(route => {
+          if (isMounted && route.coordinates?.length > 2) {
+            setRoadCorridors(prev => {
+              if (prev[donation.id] === route.coordinates) return prev
+              return { ...prev, [donation.id]: route.coordinates }
+            })
+          }
+        })
+      }
+    })
+
+    return () => { isMounted = false }
+  }, [data?.donations, data?.donors, data?.recipients, data?.drivers, showCorridors])
+
+  // Active Rescue Corridors (GeoJSON LineStrings with real road geometry)
+  const corridorsGeoJSON = useMemo(() => {
+    if (!data?.donations || !showCorridors) return null
+    const activeDonations = data.donations.filter(
+      d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
+    )
+
+    const features: CorridorFeature[] = []
+    const donorMap = new Map(data.donors.map(d => [d.id, d]))
+    const recipientMap = new Map(data.recipients.map(r => [r.id, r]))
+    const driverMap = new Map(data.drivers.map(dr => [dr.id, dr]))
+
+    activeDonations.forEach(donation => {
+      const donor = donorMap.get(donation.donor_id)
+      const recipient = donation.recipient_id ? recipientMap.get(donation.recipient_id) : null
+      const driver = donation.driver_id ? driverMap.get(donation.driver_id) : null
+
+      if (donor && recipient) {
+        const directCoords: [number, number][] = []
+        if (driver) directCoords.push([driver.longitude, driver.latitude])
+        directCoords.push([donor.longitude, donor.latitude])
+        directCoords.push([recipient.longitude, recipient.latitude])
+
+        // Use real road geometry if fetched, otherwise direct path
+        const coords = roadCorridors[donation.id] || directCoords
+
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: coords,
+          },
+          properties: {
+            id: donation.id,
+            item: donation.item,
+            qty_kg: donation.qty_kg,
+            status: donation.status,
+          },
+        })
+      }
+    })
+
+    return {
+      type: 'FeatureCollection' as const,
+      features,
+    }
+  }, [data, showCorridors, roadCorridors])
+
+  // Handlers
+  const handleClusterClick = useCallback((cluster: MapCluster) => {
+    mapRef.current?.flyTo({
+      center: [cluster.longitude, cluster.latitude],
+      zoom: Math.min(15.2, currentZoom + 2.2),
+      duration: 650,
+      essential: true,
+    })
+  }, [currentZoom])
+
+  const handlePointSelect = useCallback((point: UnifiedPoint) => {
+    setSelectedPoint(point)
+    mapRef.current?.flyTo({
+      center: [point.longitude, point.latitude],
+      zoom: Math.max(currentZoom, 13.5),
+      duration: 550,
+      essential: true,
+    })
+  }, [currentZoom])
+
+  const handleSearchResultClick = useCallback((point: UnifiedPoint) => {
+    setIsSearchOpen(false)
+    setSearchQuery('')
+    handlePointSelect(point)
+  }, [handlePointSelect])
+
+  const handleRecenter = useCallback(() => {
+    mapRef.current?.flyTo({
+      center: [BENGALURU_CENTER.longitude, BENGALURU_CENTER.latitude],
+      zoom: BENGALURU_CENTER.zoom,
+      pitch: 0,
+      bearing: 0,
+      duration: 700,
+      essential: true,
+    })
+  }, [])
+
+  const handleLocateMe = useCallback(() => {
+    if (!navigator.geolocation) {
+      handleRecenter()
+      return
+    }
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setIsLocating(false)
+        const userLoc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }
+        setUserLocation(userLoc)
+        mapRef.current?.flyTo({
+          center: [userLoc.longitude, userLoc.latitude],
+          zoom: 14,
+          duration: 800,
+          essential: true,
+        })
+      },
+      () => {
+        setIsLocating(false)
+        handleRecenter()
+      },
+      { timeout: 7000 }
+    )
+  }, [handleRecenter])
+
+  const handleZoomChange = useCallback((e: ViewStateChangeEvent) => {
+    setCurrentZoom(e.viewState.zoom)
+  }, [])
+
+  const activeThemeStyle = useMemo(() => {
+    if (themeMode === 'dark') return THEME_STYLES.dark
+    if (themeMode === 'hot') return THEME_STYLES.hot
+    if (themeMode === 'positron') return THEME_STYLES.positron
+    return THEME_STYLES.osm
+  }, [themeMode])
+
+  return (
+    <section className="panel map-panel" aria-label="Bengaluru rescue network map">
+      {/* Redesigned Premium Map Header */}
+      <div className="panel-header map-enhanced-header">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2">
+            <h2>Rescue network</h2>
+            <Badge variant="secondary" className="map-city-badge">
+              <MapPin size={11} className="text-primary mr-1" />
+              Bengaluru
+            </Badge>
+          </div>
+          <span className="map-badge-count">{allPoints.length} active nodes</span>
+        </div>
+
+        {/* Quick Filter Tabs & Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="map-filter-group" role="tablist" aria-label="Filter network nodes">
+            <button
+              className={`map-filter-pill ${activeFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('all')}
+              title="Show all participants"
+            >
+              All
+            </button>
+            <button
+              className={`map-filter-pill ${activeFilter === 'donors' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('donors')}
+              title="Filter donors"
+            >
+              <span className="pill-dot donor-dot" />
+              Donors ({data?.donors.length ?? 0})
+            </button>
+            <button
+              className={`map-filter-pill ${activeFilter === 'recipients' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('recipients')}
+              title="Filter recipient shelters"
+            >
+              <span className="pill-dot recipient-dot" />
+              Shelters ({data?.recipients.length ?? 0})
+            </button>
+            <button
+              className={`map-filter-pill ${activeFilter === 'drivers' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('drivers')}
+              title="Filter available volunteers"
+            >
+              <span className="pill-dot driver-dot" />
+              Drivers ({data?.drivers.filter(d => d.availability).length ?? 0})
+            </button>
+          </div>
+
+          {onExpand && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onExpand}
+              aria-label={expanded ? 'Collapse map' : 'Expand map'}
+              className="map-action-btn"
+            >
+              <Expand size={15} />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Map Viewport Container */}
+      <div
+        ref={containerRef}
+        className={expanded ? 'map-container expanded' : 'map-container'}
+      >
+        <MapGL
+          ref={mapRef}
+          mapLib={maplibregl}
+          initialViewState={BENGALURU_CENTER}
+          mapStyle={activeThemeStyle}
+          attributionControl={{ compact: true }}
+          style={{ width: '100%', height: '100%' }}
+          onZoomEnd={handleZoomChange}
+          onLoad={() => {
+            setLoaded(true)
+            setFailed(false)
+          }}
+          onIdle={() => {
+            setLoaded(true)
+          }}
+          onData={(e) => {
+            if (e.dataType === 'style') {
+              setLoaded(true)
+            }
+          }}
+          onError={(e) => {
+            console.error('[AaharSetu Map] MapLibre error:', e)
+            if (!loaded) setFailed(true)
+          }}
+        >
+          <NavigationControl position="bottom-right" showCompass={false} />
+
+          {/* WebGL Rescue Corridor Paths (Joint VRP Visual Flow) - guarded until style is loaded */}
+          {loaded && corridorsGeoJSON && (
+            <Source id="rescue-corridors" type="geojson" data={corridorsGeoJSON}>
+              <Layer
+                id="corridor-glow"
+                type="line"
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{
+                  'line-color': themeMode === 'dark' ? '#34d399' : '#059669',
+                  'line-width': 5.5,
+                  'line-opacity': 0.35,
+                  'line-blur': 2.5,
+                }}
+              />
+              <Layer
+                id="corridor-core"
+                type="line"
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{
+                  'line-color': themeMode === 'dark' ? '#10b981' : '#047857',
+                  'line-width': 2.2,
+                  'line-dasharray': [2.5, 2],
+                }}
+              />
+            </Source>
+          )}
+
+          {/* User Location Radar Marker */}
+          {userLocation && (
+            <Marker longitude={userLocation.longitude} latitude={userLocation.latitude}>
+              <div className="user-location-marker" title="Your current location">
+                <div className="radar-wave" />
+                <div className="radar-core" />
+              </div>
+            </Marker>
+          )}
+
+          {/* Clusters (Rendered when zoom < 12.8) */}
+          {clusters.map(cluster => (
+            <Marker
+              key={cluster.id}
+              longitude={cluster.longitude}
+              latitude={cluster.latitude}
+              anchor="center"
+            >
+              <button
+                className="map-cluster-bubble"
+                onClick={() => handleClusterClick(cluster)}
+                aria-label={`Cluster of ${cluster.count} network locations`}
+              >
+                <span className="cluster-count">{cluster.count}</span>
+                <div className="cluster-composition">
+                  {cluster.donors > 0 && <span className="cluster-pip donor" />}
+                  {cluster.recipients > 0 && <span className="cluster-pip recipient" />}
+                  {cluster.drivers > 0 && <span className="cluster-pip driver" />}
+                </div>
+              </button>
+            </Marker>
+          ))}
+
+          {/* Individual High-Fidelity Markers */}
+          {unclusteredPoints.map(p => {
+            const isSelected = selectedPoint?.id === p.id
+            return (
+              <Marker
+                key={p.id}
+                longitude={p.longitude}
+                latitude={p.latitude}
+                anchor="bottom"
+              >
+                <div className="marker-wrapper">
+                  <button
+                    className={`map-marker-pin ${p.kind} ${isSelected ? 'selected' : ''} ${p.urgent ? 'urgent-pulse' : ''}`}
+                    onClick={() => handlePointSelect(p)}
+                    aria-label={`${p.kind}: ${p.name}`}
+                  >
+                    {/* Animated Urgent Halo */}
+                    {p.urgent && <span className="urgent-halo" />}
+
+                    {/* Icon Base */}
+                    <span className="marker-icon-wrapper">
+                      {p.kind === 'donor' && <UtensilsCrossed size={14} />}
+                      {p.kind === 'recipient' && <HeartHandshake size={14} />}
+                      {p.kind === 'driver' && <Bike size={14} />}
+                    </span>
+
+                    {/* Mini Badge Indicator */}
+                    {p.kind === 'donor' && (p.activeRescues ?? 0) > 0 && (
+                      <span className="marker-qty-badge">{p.activeRescues}</span>
+                    )}
+                    {p.kind === 'driver' && p.isAvailable && (
+                      <span className="marker-status-indicator available" />
+                    )}
+                  </button>
+
+                  {/* Hover Name Tooltip */}
+                  <div className="marker-hover-label">
+                    <span>{p.name}</span>
+                  </div>
+                </div>
+              </Marker>
+            )
+          })}
+
+          {/* Modern Glassmorphic Detail Card / Popup */}
+          {selectedPoint && (
+            <Popup
+              longitude={selectedPoint.longitude}
+              latitude={selectedPoint.latitude}
+              onClose={() => setSelectedPoint(null)}
+              closeOnClick={false}
+              offset={28}
+              className="custom-map-popup"
+            >
+              <div className="map-detail-card">
+                <div className="detail-card-header">
+                  <span className={`detail-kind-badge ${selectedPoint.kind}`}>
+                    {selectedPoint.kind === 'donor' && 'Food Donor'}
+                    {selectedPoint.kind === 'recipient' && 'Community Shelter'}
+                    {selectedPoint.kind === 'driver' && 'Volunteer Courier'}
+                  </span>
+                  {selectedPoint.urgent && (
+                    <Badge variant="destructive" className="text-[9px] h-4">Urgent window</Badge>
+                  )}
+                  {selectedPoint.isOpen !== undefined && (
+                    <span className={`status-dot ${selectedPoint.isOpen ? 'online' : 'muted'}`} />
+                  )}
+                </div>
+
+                <div className="detail-card-body">
+                  <h3 className="detail-card-title">{selectedPoint.name}</h3>
+                  <p className="detail-card-area">
+                    <MapPin size={12} className="inline mr-1 opacity-70" />
+                    {selectedPoint.area}, Bengaluru
+                  </p>
+
+                  {/* Contextual Metric depending on kind */}
+                  {selectedPoint.kind === 'donor' && (
+                    <div className="detail-metric-row">
+                      <span>Active batches:</span>
+                      <strong>{selectedPoint.activeRescues ? `${selectedPoint.activeRescues} ready for pickup` : 'Standby'}</strong>
+                    </div>
+                  )}
+
+                  {selectedPoint.kind === 'recipient' && selectedPoint.capacityAvailable !== undefined && (
+                    <div className="detail-metric-row">
+                      <span>Available intake:</span>
+                      <strong>{selectedPoint.capacityAvailable} / {selectedPoint.capacityTotal} kg</strong>
+                    </div>
+                  )}
+
+                  {selectedPoint.kind === 'driver' && (
+                    <div className="detail-metric-row">
+                      <span>Vehicle:</span>
+                      <strong>{selectedPoint.vehicle ?? 'Courier'} · {selectedPoint.isAvailable ? 'Ready for assignment' : 'On route'}</strong>
+                    </div>
+                  )}
+                </div>
+
+                <div className="detail-card-footer">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="detail-action-btn"
+                    onClick={() => setSelectedPoint(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="detail-action-btn primary"
+                    onClick={() => {
+                      mapRef.current?.flyTo({
+                        center: [selectedPoint.longitude, selectedPoint.latitude],
+                        zoom: 15,
+                        duration: 500,
+                      })
+                    }}
+                  >
+                    Focus location
+                  </Button>
+                </div>
+              </div>
+            </Popup>
+          )}
+        </MapGL>
+
+        {/* Search Overlay Widget */}
+        <div className="map-search-container">
+          <div className="map-search-bar">
+            <Search size={14} className="text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder="Search locality, donor, or shelter…"
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value)
+                setIsSearchOpen(true)
+              }}
+              onFocus={() => setIsSearchOpen(true)}
+              aria-label="Search map locations"
+            />
+            {searchQuery && (
+              <button
+                className="search-clear-btn"
+                onClick={() => {
+                  setSearchQuery('')
+                  setIsSearchOpen(false)
+                }}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete Dropdown */}
+          {isSearchOpen && searchResults.length > 0 && (
+            <div className="map-search-dropdown">
+              {searchResults.map(item => (
+                <button
+                  key={item.id}
+                  className="search-result-item"
+                  onClick={() => handleSearchResultClick(item)}
+                >
+                  <span className={`result-icon ${item.kind}`}>
+                    {item.kind === 'donor' && <UtensilsCrossed size={12} />}
+                    {item.kind === 'recipient' && <HeartHandshake size={12} />}
+                    {item.kind === 'driver' && <Bike size={12} />}
+                  </span>
+                  <div className="result-text">
+                    <strong>{item.name}</strong>
+                    <span>{item.area}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Map Control Tools (Floating Bottom-Left) */}
+        <div className="map-floating-controls">
+          <button
+            className="map-control-btn"
+            onClick={handleRecenter}
+            aria-label="Recenter on Bengaluru"
+            title="Recenter on Bengaluru center"
+          >
+            <RotateCcw size={15} />
+          </button>
+
+          <button
+            className={`map-control-btn ${isLocating ? 'locating' : ''}`}
+            onClick={handleLocateMe}
+            aria-label="Find my location"
+            title="Locate my position (GPS)"
+          >
+            <LocateFixed size={15} />
+          </button>
+
+          {/* Corridors Toggle */}
+          <button
+            className={`map-control-btn ${showCorridors ? 'active' : ''}`}
+            onClick={() => setShowCorridors(!showCorridors)}
+            aria-label="Toggle active rescue corridors"
+            title={showCorridors ? 'Hide rescue paths' : 'Show rescue paths'}
+          >
+            <Navigation size={15} />
+          </button>
+
+          {/* Theme Quick Toggle */}
+          <button
+            className="map-control-btn"
+            onClick={() => {
+              const sequence: MapThemeKey[] = ['osm', 'hot', 'dark', 'positron']
+              const nextIdx = (sequence.indexOf(themeMode) + 1) % sequence.length
+              setThemeMode(sequence[nextIdx])
+            }}
+            aria-label="Switch map theme"
+            title={`Current theme: ${themeMode.toUpperCase()}. Click to switch style.`}
+          >
+            {themeMode === 'dark' ? (
+              <Moon size={15} />
+            ) : themeMode === 'hot' ? (
+              <Compass size={15} />
+            ) : themeMode === 'positron' ? (
+              <Sun size={15} />
+            ) : (
+              <Sparkles size={15} />
+            )}
+          </button>
+        </div>
+
+        {/* Fallback & Loading State */}
+        {!loaded && (
+          <div className="map-loading">
+            <div className="loading-spinner-ring" />
+            <span>{failed ? 'Vector map style unreachable' : 'Rendering Bengaluru rescue grid…'}</span>
+            {failed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setThemeMode('osm')
+                  setFailed(false)
+                }}
+              >
+                Switch to OpenStreetMap Raster
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modern Responsive Map Legend */}
+      <div className="map-legend">
+        <span>
+          <i className="legend-dot donor" />
+          Donors ({data?.donors.length ?? 0})
+        </span>
+        <span>
+          <i className="legend-dot recipient" />
+          Shelters ({data?.recipients.length ?? 0})
+        </span>
+        <span>
+          <i className="legend-dot driver" />
+          Volunteers ({data?.drivers.filter(d => d.availability).length ?? 0})
+        </span>
+        {showCorridors && (
+          <span className="corridor-indicator">
+            <i className="legend-line corridor" />
+            Active corridors
+          </span>
+        )}
+        <span className="legend-note">
+          {data ? 'Real-Time Spatial Network' : 'Awaiting network sync'}
+        </span>
+      </div>
+    </section>
+  )
+})

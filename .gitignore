@@ -51,4 +51,8 @@ skills-lock.json
 
 # Supabase Local Cache
 supabase/.temp/
+
+# Temp test folders
+.edge-temp*
+scratch/
 
