@@ -106,35 +106,103 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const rafRef = useRef<number>(0)
   const dprRef = useRef(Math.min(window.devicePixelRatio || 1, 2))
 
-  /* ─── Preload all frames ─── */
+  /* ─── Progressive priority preload (never blocks or gets stuck) ─── */
   useEffect(() => {
     let loaded = 0
+    let readyTriggered = false
+    const REQUIRED_INITIAL_FRAMES = 8 // Only require initial frames for instant hero entry
     const images: HTMLImageElement[] = new Array(TOTAL_FRAMES + 1)
+    imagesRef.current = images
 
-    for (let i = 1; i <= TOTAL_FRAMES; i++) {
+    const triggerReady = () => {
+      if (!readyTriggered) {
+        readyTriggered = true
+        setIsReady(true)
+      }
+    }
+
+    // Safety failsafe: never trap user on loading screen under any network conditions
+    const safetyTimer = setTimeout(() => {
+      triggerReady()
+    }, 1500)
+
+    const loadFrame = (i: number, onDone?: () => void) => {
       const img = new Image()
       img.src = framePath(i)
       img.onload = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded === TOTAL_FRAMES) setIsReady(true)
+        if (loaded >= REQUIRED_INITIAL_FRAMES) triggerReady()
+        if (onDone) onDone()
       }
       img.onerror = () => {
         loaded++
         setLoadedCount(loaded)
-        if (loaded === TOTAL_FRAMES) setIsReady(true)
+        if (loaded >= REQUIRED_INITIAL_FRAMES) triggerReady()
+        if (onDone) onDone()
       }
       images[i] = img
     }
-    imagesRef.current = images
+
+    // Priority 1: Load initial 15 frames immediately
+    for (let i = 1; i <= Math.min(15, TOTAL_FRAMES); i++) {
+      loadFrame(i)
+    }
+
+    // Priority 2: Stream remaining frames progressively in chunks to avoid connection starvation
+    let nextFrame = 16
+    const chunkSize = 12
+
+    const queueNextChunk = () => {
+      if (nextFrame > TOTAL_FRAMES) return
+      const end = Math.min(nextFrame + chunkSize, TOTAL_FRAMES + 1)
+      let chunkRemaining = end - nextFrame
+      for (let i = nextFrame; i < end; i++) {
+        loadFrame(i, () => {
+          chunkRemaining--
+          if (chunkRemaining === 0) {
+            setTimeout(queueNextChunk, 20)
+          }
+        })
+      }
+      nextFrame = end
+    }
+
+    const bgTimer = setTimeout(queueNextChunk, 100)
+
+    return () => {
+      clearTimeout(safetyTimer)
+      clearTimeout(bgTimer)
+    }
   }, [])
 
-  /* ─── Draw frame to canvas (DPR-aware for crispness) ─── */
+  /* ─── Draw frame to canvas (DPR-aware with fallback to nearest loaded frame) ─── */
   const drawFrame = useCallback((frameNum: number) => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    const img = imagesRef.current[frameNum]
-    if (!canvas || !ctx || !img || !img.complete || !img.naturalWidth) return
+    if (!canvas || !ctx) return
+
+    // Find requested frame, or fallback to closest loaded frame
+    let img = imagesRef.current[frameNum]
+    if (!img || !img.complete || !img.naturalWidth) {
+      // Look backwards for closest loaded frame
+      for (let k = frameNum - 1; k >= 1; k--) {
+        if (imagesRef.current[k]?.complete && imagesRef.current[k]?.naturalWidth) {
+          img = imagesRef.current[k]
+          break
+        }
+      }
+      // If none backwards, search forwards
+      if (!img || !img.complete || !img.naturalWidth) {
+        for (let k = frameNum + 1; k <= TOTAL_FRAMES; k++) {
+          if (imagesRef.current[k]?.complete && imagesRef.current[k]?.naturalWidth) {
+            img = imagesRef.current[k]
+            break
+          }
+        }
+      }
+    }
+    if (!img || !img.complete || !img.naturalWidth) return
 
     const dpr = dprRef.current
     const displayW = window.innerWidth
@@ -250,7 +318,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     return 1 - Math.pow(1 - t, 3)
   }
 
-  const loadProgress = Math.round((loadedCount / TOTAL_FRAMES) * 100)
+  const loadProgress = Math.min(100, Math.round((loadedCount / 8) * 100))
 
   /* ─── Progress dots ─── */
   const activeChapterIdx = chapters.findIndex(
