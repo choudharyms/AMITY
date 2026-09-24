@@ -3,7 +3,7 @@
 > *"Turn a restaurant's unsold food into a shelter's next meal, before it hits the dumpster."*
 
 **AMIHACKS 1.0 | Track A: NGO / Social Impact**  
-**Bengaluru Pilot Edition**
+**Indian City Pilot Architecture**
 
 [![React](https://img.shields.io/badge/Frontend-React_19_+_Vite-1B4D3E?logo=react)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI_+_Python_3.11-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -35,15 +35,15 @@ $$\text{Score} = 0.35 \times S_{\text{urgency}} + 0.25 \times S_{\text{proximity
 - Displays transparent breakdown percentages directly to coordinators.
 - Enforces strict constraints: recipient must be open, verified, have sufficient reserved capacity, and accept the food category (veg/non-veg/perishable).
 
-### 3. Joint Multi-Vehicle Routing (VRP with Time Windows) vs. Greedy Baseline
-- **The Issue with Greedy Delivery:** Traditional food delivery algorithms route nearest-first greedily, causing distant or delayed stops to expire in transit.
-- **AaharSetu Joint VRP:** Solves a multi-stop vehicle routing problem with hard expiry deadlines.
-- **Live Benchmark:** On the live Bengaluru pilot dataset, AaharSetu saves **~26% travel distance** while achieving **100% on-time delivery (0 missed deadlines)** compared to the greedy baseline (2 expired batches).
+### 3. Road-Based Route Comparison
+- OpenRouteService matrix data orders up to six active pickup stops for one available driver.
+- A nearest-road baseline is compared with a deadline-aware ordering; OpenRouteService directions provide road distance and arrival-time checks.
+- Results depend on actual registered city data, available drivers, current ORS coverage, and the provider response. This is a route comparison, not a fleet-wide VRP or delivery guarantee.
 
-### 4. Trust & Cryptographic Handover Protocol
-- Stage 1: Donor $\rightarrow$ Driver pickup with 6-digit OTP verification.
-- Stage 2: Driver $\rightarrow$ Shelter handover with QR/OTP confirmation.
-- Generates an official, printable **FSSAI Surplus Food Recovery Pass** with donor license tag (*"Collected, not verified"*), batch hash, attested temperature, and strict consume-by timestamp.
+### 4. Account-Verified Handover
+- An assigned driver confirms pickup through an authenticated account.
+- An assigned recipient confirms delivery through an authenticated account.
+- Supabase role and record policies validate the assignment and allowed state transition; database triggers create dispatch history and delivery records.
 
 ---
 
@@ -51,25 +51,28 @@ $$\text{Score} = 0.35 \times S_{\text{urgency}} + 0.25 \times S_{\text{proximity
 
 ```mermaid
 graph TD
-    A[Donor / Caterer] -->|NLP / Audio / Voice| B(Gemini Flash-Lite Intake)
-    B -->|Structured JSON| C[AaharSetu Frontend]
-    C -->|REST API / SWR| D[FastAPI Backend Engine]
-    D -->|PostGIS Spatial Queries| E[(Supabase PostgreSQL)]
-    D --> F[FSSAI Safety Countdown Engine]
-    D --> G[5-Factor Transparent Matching]
-    D --> H[Joint VRP Routing Optimizer]
-    H -->|Dispatched Route| I[Volunteer Courier]
-    I -->|QR / 6-Digit OTP| J[Shelter / Recipient]
-    J -->|Verified Handover| K[(Impact Audit Ledger)]
+    A[Signed-in user] -->|Supabase access token| B[React + SWR]
+    B -->|Bearer-authenticated REST| C[FastAPI]
+    C -->|User JWT + publishable key| D[Supabase Auth + PostgREST]
+    D -->|RLS and city membership| E[(Postgres + PostGIS)]
+    C --> F[Food safety calculations]
+    C -->|Road matrix / directions| G[OpenRouteService]
+    B -->|Real city records| H[MapLibre + OpenStreetMap basemap]
+    C --> I[Role-checked dispatch RPCs]
+    I --> J[Database audit triggers]
 ```
+
+See [the current architecture and rollout notes](docs/current-architecture.md) for the security model, database setup, and real-data provisioning requirements.
 
 ---
 
 ## 💻 Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, Lucide Icons, Sonner toasts, SWR data synchronization, MapLibre GL.
-- **Backend:** FastAPI, Python 3.11, Pydantic v2, SQLAlchemy, Uvicorn.
-- **Database & Auth:** Supabase PostgreSQL + PostGIS (with automatic offline fallback so live demos never fail).
+- **Backend:** FastAPI, Python 3.11, Pydantic v2, httpx, Uvicorn.
+- **Database & Auth:** Supabase Auth + Postgres/PostGIS. The API forwards each signed-in user's JWT; it does not use a service-role key.
+- **Maps & routing:** MapLibre with OpenStreetMap-derived tiles, plus server-side OpenRouteService directions and matrix requests.
+- **City scope:** A shared city directory currently covers Bengaluru, Mumbai, Delhi, Chennai, Hyderabad, Pune, Kolkata, Ahmedabad, Jaipur, and Lucknow.
 - **Design System:** Custom **AaharSetu Earth & Rescue Design System** generated via Stitch MCP:
   - `#1B4D3E` (Deep Emerald - Trust & Vitality)
   - `#E07A5F` (Terracotta Urgency - Actionable Alerts)
@@ -101,15 +104,27 @@ pip install -r backend/requirements.txt
 Create `.env` in the root folder (or use `.env.example`):
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+VITE_SUPABASE_KEY=your_supabase_publishable_or_anon_key_here
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key_here
+SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_or_anon_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
 ORS_API_KEY=your_openrouteservice_key_here
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_destination_id
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
-*(Note: `.env` is strictly gitignored. When credentials are not configured, AaharSetu runs seamlessly in offline simulation mode.)*
+`.env` is gitignored. Offline mode displays only the Bengaluru synthetic demo and disables writes. With Supabase configured, the app requires sign-in and does not substitute demo records when the API fails. ORS routes are unavailable until `ORS_API_KEY` is configured. Telegram is not enabled until a destination and notification flow are configured.
 
-### 4. Run Locally
+### 4. Apply the database schema
+Run `supabase/schema.sql` in the Supabase SQL editor. Existing Bengaluru rows receive the `blr` city id; real records remain visible only through the new RLS policies. New users receive a donor role by default. A trusted administrator must provision their requested role and associate the account with its donor, driver, or recipient record. To promote the initial coordinator, do so from the SQL editor after verifying the account:
+
+```sql
+UPDATE public.profiles SET role = 'coordinator' WHERE email = 'verified-coordinator@example.org';
+```
+
+The city selector changes a user's active city preference; RLS still limits records to their assigned city and linked entities. The selected city shows no operational locations until real records have been registered for it.
+
+### 5. Run Locally
 To run both backend and frontend concurrently:
 ```bash
 npm run dev:all
@@ -120,24 +135,13 @@ Or run individually:
 
 ---
 
-## 🧪 Live Demo Walkthrough (For Hackathon Judges)
+## 🧪 Local Preview and Live Setup
 
-1. **Dashboard Overview:**
-   - Navigate to `http://localhost:3000/`.
-   - View live Bengaluru pilot records, active food countdowns, and the interactive rescue map.
-2. **Post a Donation with AI Extraction:**
-   - Click **"Post a donation"**.
-   - Click **"✨ Extract with AI"** to simulate automatic parsing of messy Hindi/English kitchen notes (`"Leftover 45 plates biryani at Indiranagar banquet, hot, need pickup by 3pm"`).
-   - Watch the FSSAI temperature-safety indicator dynamically adjust the safe window.
-3. **Inspect the Global Routing Benchmark:**
-   - Switch to the **Dispatch** tab.
-   - Inspect the **Global Route Optimization Benchmark** card comparing AaharSetu's Joint VRP against Naive Nearest-First (demonstrating distance savings and zero missed deadlines).
-4. **Execute Verified Handover:**
-   - Click **"Verify & pick up"** or **"Verify & deliver"** on any active card.
-   - The **QR / OTP Handover Dialog** opens with 1-click verification, simulating physical proof-of-transfer.
-5. **Print FSSAI Pass & Audit Impact:**
-   - Click any completed donation to view and print the official **FSSAI Food Recovery Pass / Batch Manifest**.
-   - Navigate to the **Impact** tab to view CO₂e avoided, meal equivalents, and export the verified CSV audit trail.
+1. With no Supabase environment configured, open `http://localhost:3000/` to inspect the Bengaluru synthetic preview. Mutations are disabled.
+2. For a live network, apply `supabase/schema.sql`, configure the environment, and provision account-linked city locations as described above.
+3. Sign in with a provisioned account. Dashboard records and map pins come from that account's RLS-visible Supabase rows.
+4. A donor with a registered donor location can post a donation. A coordinator can request matching and road-route comparison. The assigned driver and recipient confirm their own stages.
+5. Route and impact views show current database data. They do not use the old fabricated benchmark or synthetic handover confirmation flow.
 
 ---
 

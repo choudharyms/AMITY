@@ -1,0 +1,30 @@
+name: Render & Supabase Keep-Alive Cron
+
+on:
+  schedule:
+    # Run every 14 minutes to prevent Render free-tier sleep and maintain Supabase activity
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-services:
+    name: Ping Deployed Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Health & Supabase REST
+        run: |
+          echo "Pinging AaharSetu health endpoints..."
+          
+          # Optional custom backend URL (fallback to placeholder if not deployed yet)
+          BACKEND_URL="${{ secrets.LIVE_BACKEND_URL }}"
+          if [ -n "$BACKEND_URL" ]; then
+            echo "Pinging backend at $BACKEND_URL/api/health"
+            curl -s -f -m 15 "$BACKEND_URL/api/health" || echo "Backend ping timed out or cold starting"
+          else
+            echo "LIVE_BACKEND_URL secret not set. Skipping custom backend ping."
+          fi
+
+          # Ping Supabase project endpoint
+          SUPABASE_PROJECT="ramqltupvojhibvobzgp"
+          echo "Pinging Supabase project $SUPABASE_PROJECT..."
+          curl -s -o /dev/null -w "Supabase HTTP status: %{http_code}\n" "https://${SUPABASE_PROJECT}.supabase.co/rest/v1/" || true
