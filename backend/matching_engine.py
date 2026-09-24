@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from models import DonationSchema, RecipientSchema, MatchCandidate, MatchScoreBreakdown, DonorSchema
 from safety_engine import parse_iso, is_rescue_viable
+from config import ORS_API_KEY
+import httpx
 
 EARTH_RADIUS_KM = 6371.0
 
@@ -23,6 +25,32 @@ def estimate_transit_time_minutes(distance_km: float) -> int:
     """
     return max(8, int((distance_km / 18.0) * 60) + 5)
 
+def road_estimates(donor: DonorSchema, recipients: List[RecipientSchema]) -> dict:
+    if not recipients:
+        return {}
+    if not ORS_API_KEY:
+        raise RuntimeError("OpenRouteService is not configured")
+    coordinates = [[donor.longitude, donor.latitude]] + [
+        [recipient.longitude, recipient.latitude] for recipient in recipients
+    ]
+    try:
+        response = httpx.post(
+            "https://api.openrouteservice.org/v2/matrix/driving-car",
+            headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
+            json={"locations": coordinates, "sources": [0], "destinations": list(range(1, len(coordinates))), "metrics": ["distance", "duration"]},
+            timeout=15.0,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        distances, durations = payload["distances"][0], payload["durations"][0]
+        return {
+            recipient.id: (float(distances[index]) / 1000.0, max(1, int(float(durations[index]) / 60.0)))
+            for index, recipient in enumerate(recipients)
+            if distances[index] is not None and durations[index] is not None
+        }
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise RuntimeError("OpenRouteService could not estimate recipient routes") from exc
+
 def match_donation_to_recipients(
     donation: DonationSchema,
     donor: DonorSchema,
@@ -37,10 +65,13 @@ def match_donation_to_recipients(
     now = current_time or datetime.now(timezone.utc)
     safe_until_dt = parse_iso(donation.safe_until)
     candidates: List[MatchCandidate] = []
+    estimates = road_estimates(donor, recipients)
 
     for r in recipients:
-        dist_km = haversine_distance(donor.latitude, donor.longitude, r.latitude, r.longitude)
-        transit_mins = estimate_transit_time_minutes(dist_km)
+        estimate = estimates.get(r.id)
+        if not estimate:
+            continue
+        dist_km, transit_mins = estimate
 
         # 1. Hard Filter: Safety Window & Transit Viability
         viable, remaining_mins, reason_str = is_rescue_viable(safe_until_dt, transit_mins, now)

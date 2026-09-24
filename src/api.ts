@@ -1,32 +1,15 @@
 import { toast } from 'sonner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
-import { addLocalDonation, updateLocalDonation } from './seed'
+import { supabase } from '@/lib/supabase'
 import type { Category } from './types'
 
-async function request(path: string, init: RequestInit) {
-  const res = await fetch(path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
-  })
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      const body = await res.json()
-      detail = body.detail ?? JSON.stringify(body)
-    } catch { /* keep status text */ }
-    throw new Error(detail)
-  }
-  return res.json()
-}
-
 export interface DonationIntent {
+  city_id: string
   donor_id: string
   item: string
   category: Category
   qty_kg: number
   prepared_at: string
   temp_c: number | null
-  safe_until: string
   source_text?: string
 }
 
@@ -41,59 +24,44 @@ export interface RouteComparison {
   computed_at: string
 }
 
-export async function createDonation(payload: DonationIntent): Promise<{ id: string; source: 'backend' | 'supabase' | 'local' }> {
-  try {
-    const posted = await request('/api/donations', { method: 'POST', body: JSON.stringify(payload) })
-    toast.success('Donation posted. Matching engine triggered.')
-    return { id: posted.id, source: 'backend' }
-  } catch {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error: insertError } = await supabase
-          .from('donations')
-          .insert({ ...payload, status: 'posted', is_synthetic: false })
-          .select('id')
-          .single()
-        if (!insertError && data) {
-          toast.success('Donation saved to Supabase PostGIS.')
-          return { id: (data as { id: string }).id, source: 'supabase' }
-        }
-      } catch { /* proceed to local fallback */ }
-    }
-    const local = addLocalDonation({
-      ...payload,
-      status: 'posted',
-      recipient_id: null,
-      driver_id: null,
-    })
-    toast.success('Donation posted to Bengaluru pilot network.')
-    return { id: local.id, source: 'local' }
+export async function apiRequest<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
+  const headers = new Headers(init.headers)
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (authenticated) {
+    if (!supabase) throw new Error('Account service is not configured.')
+    const { data, error } = await supabase.auth.getSession()
+    if (error) throw new Error('Could not confirm your sign-in. Please sign in again.')
+    if (!data.session?.access_token) throw new Error('Sign in to continue.')
+    headers.set('Authorization', `Bearer ${data.session.access_token}`)
   }
+  const res = await fetch(path, { ...init, headers })
+  if (!res.ok) {
+    let detail = res.statusText || 'Request failed'
+    try {
+      const body = await res.json()
+      detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body)
+    } catch { /* use the HTTP status text */ }
+    throw new Error(detail)
+  }
+  return res.json() as Promise<T>
 }
 
-export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver'): Promise<void> {
-  try {
-    await request(`/api/donations/${id}/${action}`, { method: 'POST', body: '{}' })
-    toast.success(action === 'match' ? 'Route checked and rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery verified. Impact updated.')
-  } catch {
-    updateLocalDonation(id, action)
-    toast.success(action === 'match' ? 'Route checked and rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery verified. Impact updated.')
-  }
+export async function createDonation(payload: DonationIntent): Promise<{ id: string }> {
+  const { city_id, ...body } = payload
+  const posted = await apiRequest<{ id: string }>(`/api/donations?city_id=${encodeURIComponent(city_id)}`, {
+    method: 'POST', body: JSON.stringify(body),
+  })
+  toast.success('Donation saved to the live rescue network.')
+  return posted
 }
 
-export async function fetchRouteComparison(): Promise<RouteComparison> {
-  try {
-    return await request('/api/routes/compare', { method: 'GET' })
-  } catch {
-    return {
-      joint_route_km: 19.4,
-      greedy_baseline_km: 26.2,
-      km_saved: 6.8,
-      pct_distance_saved: 26.0,
-      joint_missed_deadlines: 0,
-      greedy_missed_deadlines: 2,
-      stops_count: 5,
-      computed_at: new Date().toISOString(),
-    }
-  }
+export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver', cityId: string): Promise<void> {
+  await apiRequest(`/api/donations/${encodeURIComponent(id)}/${action}?city_id=${encodeURIComponent(cityId)}`, {
+    method: 'POST', body: '{}',
+  })
+  toast.success(action === 'match' ? 'Rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery confirmed.')
+}
+
+export function fetchRouteComparison(cityId: string): Promise<RouteComparison> {
+  return apiRequest(`/api/routes/compare?city_id=${encodeURIComponent(cityId)}`)
 }

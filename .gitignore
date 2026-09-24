@@ -5,6 +5,7 @@
 
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnp
 .pnp.js
 
@@ -57,4 +58,3 @@ supabase/.temp/
 *.ps1
 *.mp4
 scroll/
-

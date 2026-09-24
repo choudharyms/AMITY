@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { categoryLabels, type Category, type PilotData } from '@/src/types'
-import { createDonation } from '@/src/api'
+import { apiRequest, createDonation } from '@/src/api'
 import { seedCategoryDefaults } from '@/src/seed'
 
 function toLocalInput(ts: number) {
@@ -16,7 +16,7 @@ function toLocalInput(ts: number) {
   return d.toISOString().slice(0, 16)
 }
 
-export function DonationForm({ open, data, refresh, onClose }: { open: boolean; data?: PilotData; refresh: () => void; onClose: () => void }) {
+export function DonationForm({ open, data, cityId, refresh, onClose }: { open: boolean; data?: PilotData; cityId: string; refresh: () => void; onClose: () => void }) {
   const donors = data?.donors ?? []
   const [donorId, setDonorId] = useState(donors[0]?.id ?? '')
   const [item, setItem] = useState('')
@@ -24,7 +24,6 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
   const [category, setCategory] = useState<Category>('cooked_hot')
   const [tempC, setTempC] = useState<string>('70')
   const [preparedAt, setPreparedAt] = useState<string>(toLocalInput(Date.now()))
-  const [windowHours, setWindowHours] = useState(seedCategoryDefaults.cooked_hot.window_hours)
   const [sourceText, setSourceText] = useState('')
   const [isExtracting, setIsExtracting] = useState(false)
   const [pending, setPending] = useState(false)
@@ -37,14 +36,12 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
     setIsExtracting(false)
     setCategory('cooked_hot')
     setTempC('70')
-    setWindowHours(seedCategoryDefaults.cooked_hot.window_hours)
     setPreparedAt(toLocalInput(Date.now()))
   }
 
   function handleCategoryChange(c: Category) {
     setCategory(c)
     const def = seedCategoryDefaults[c]
-    setWindowHours(def.window_hours)
     setTempC(def.temp === null ? '' : String(def.temp))
   }
 
@@ -55,24 +52,20 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
     }
     setIsExtracting(true)
     try {
-      const res = await fetch('/api/donations/intake-nlp', {
+      const parsed = await apiRequest<{ item: string; category: Category; qty_kg: number; temp_c: number | null; prepared_at_iso?: string }>('/api/donations/intake-nlp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: sourceText }),
       })
-      if (!res.ok) throw new Error('AI parser request failed')
-      const parsed = await res.json()
       setItem(parsed.item)
       setCategory(parsed.category)
       setQtyKg(String(parsed.qty_kg))
       setTempC(parsed.temp_c !== null ? String(parsed.temp_c) : '')
-      setWindowHours(parsed.window_hours)
       if (parsed.prepared_at_iso) {
         setPreparedAt(toLocalInput(new Date(parsed.prepared_at_iso).getTime()))
       }
       toast.success(`Extracted with AI: ${parsed.item} · ${parsed.qty_kg} kg`)
     } catch {
-      // Heuristic fallback for offline / no backend
+      // Keep the form usable when the authenticated AI endpoint is unavailable.
       const clean = sourceText.toLowerCase()
       let parsedKg = 15
       const kgMatch = clean.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilos|kilograms)/)
@@ -100,7 +93,7 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
 
       const words = sourceText.trim().split(/\s+/).slice(0, 4).join(' ')
       setItem(words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Veg Meals')
-      toast.success(`Extracted details from text: ${parsedKg} kg`)
+      toast.info(`Used local text hints: ${parsedKg} kg. Review every field before posting.`)
     } finally {
       setIsExtracting(false)
     }
@@ -112,17 +105,17 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
     setPending(true)
     try {
       const prepTimestamp = new Date(preparedAt).getTime()
-      const safeUntilIso = new Date(prepTimestamp + windowHours * 3600000).toISOString()
-      const activeDonorId = donorId || donors[0]?.id || 'donor-toit'
+      const activeDonorId = donorId || donors[0]?.id
+      if (!activeDonorId) throw new Error('Your account has no verified donor location in this city yet.')
 
       await createDonation({
+        city_id: cityId,
         donor_id: activeDonorId,
         item: item.trim(),
         category,
         qty_kg: Number(qtyKg) || 10,
         prepared_at: new Date(prepTimestamp).toISOString(),
         temp_c: tempC.trim() ? Number(tempC) : defaults.temp,
-        safe_until: safeUntilIso,
         source_text: sourceText.trim() || undefined,
       })
       onClose()
@@ -195,18 +188,11 @@ export function DonationForm({ open, data, refresh, onClose }: { open: boolean; 
       <Field>
         <div className="flex items-center justify-between">
           <FieldLabel>Safe recovery window</FieldLabel>
-          <span className="text-xs font-semibold text-primary">{windowHours} hours remaining</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          {[1, 2, 3, 4, 6, 12].map(h => (
-            <button type="button" key={h} onClick={() => setWindowHours(h)} className={windowHours === h ? 'filter-select bg-secondary text-primary font-semibold border-primary' : 'filter-select'}>
-              {h} h
-            </button>
-          ))}
+          <span className="text-xs font-semibold text-primary">Up to {seedCategoryDefaults[category].window_hours} hours</span>
         </div>
         <div className="flex items-center gap-1.5 mt-2 p-2 rounded-lg bg-secondary/40 text-xs text-foreground/80">
           <ShieldCheck size={14} className="text-primary shrink-0" />
-          <span>{safetyRationale}</span>
+          <span>{safetyRationale} The server calculates the authoritative safe-until time from category, temperature, and preparation time.</span>
         </div>
       </Field>
 

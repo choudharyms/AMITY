@@ -1,4 +1,4 @@
--- AaharSetu multi-city schema for Supabase Postgres + PostGIS.
+-- AaharSetu multi-city and authenticated-access upgrade.\n-- This follows the initial pilot migration and removes its public access policies.\n\n-- AaharSetu multi-city schema for Supabase Postgres + PostGIS.
 -- Apply from the Supabase SQL editor after backing up existing production data.
 
 CREATE EXTENSION IF NOT EXISTS postgis;

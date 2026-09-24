@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { Leaf, LoaderCircle, Mail } from 'lucide-react'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cities } from '@/src/cities'
 
-export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function AuthDialog({ open, onOpenChange, cityId = 'blr' }: { open: boolean; onOpenChange: (open: boolean) => void; cityId?: string }) {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [requestedRole, setRequestedRole] = useState<'donor' | 'driver' | 'recipient'>('donor')
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!supabase) { setError('Authentication is not configured in this build. Add Supabase keys to .env.local and restart.'); return }
@@ -23,7 +25,7 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         ? await supabase.auth.signInWithPassword(credentials)
         : await supabase.auth.signUp({ ...credentials, options: {
           emailRedirectTo: import.meta.env.VITE_AUTH_REDIRECT || `${location.origin}/auth/callback`,
-          data: { display_name: String(form.get('name') || '') },
+          data: { display_name: String(form.get('name') || ''), city_id: cityId, requested_role: requestedRole },
         } })
       if (result.error) {
         const code = result.error.code
@@ -42,9 +44,10 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-md p-7">
     <div className="brand-icon mb-1"><Leaf size={23} /></div>
-    <DialogHeader><DialogTitle>{mode === 'login' ? 'Welcome back.' : 'Make room for more good.'}</DialogTitle><DialogDescription>{mode === 'login' ? 'Sign in to coordinate your next food rescue.' : 'Create your donor account. Coordinator access is granted separately.'}</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>{mode === 'login' ? 'Welcome back.' : 'Make room for more good.'}</DialogTitle><DialogDescription>{mode === 'login' ? 'Sign in to coordinate your next food rescue.' : 'Choose a city and request an account role. Access is granted only after your organization is verified.'}</DialogDescription></DialogHeader>
     {sent ? <Alert><Mail /><AlertTitle>Check your inbox</AlertTitle><AlertDescription>If this address is eligible, you will receive a confirmation link. Confirm your email before signing in.</AlertDescription></Alert> : <form onSubmit={submit}><FieldGroup className="gap-4">
       {mode === 'signup' && <Field><FieldLabel htmlFor="auth-name">Your name</FieldLabel><Input id="auth-name" name="name" autoComplete="name" required maxLength={100} /></Field>}
+      {mode === 'signup' && <div className="grid grid-cols-2 gap-3"><Field><FieldLabel htmlFor="auth-city">City</FieldLabel><select id="auth-city" value={cityId} disabled className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm">{cities.filter(city => city.id === cityId).map(city => <option key={city.id} value={city.id}>{city.name}</option>)}</select></Field><Field><FieldLabel htmlFor="auth-role">Requested role</FieldLabel><select id="auth-role" value={requestedRole} onChange={event => setRequestedRole(event.target.value as typeof requestedRole)} className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"><option value="donor">Donor</option><option value="recipient">Recipient</option><option value="driver">Driver</option></select></Field></div>}
       <Field><FieldLabel htmlFor="auth-email">Email address</FieldLabel><Input id="auth-email" name="email" type="email" autoComplete="email" placeholder="you@organization.org" required /></Field>
       <Field><FieldLabel htmlFor="auth-password">Password</FieldLabel><Input id="auth-password" name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={8} maxLength={128} required /></Field>
       {error && <FieldError>{error}</FieldError>}
