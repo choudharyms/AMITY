@@ -76,6 +76,8 @@ class DispatchEventSchema(BaseModel):
     event_type: str
     message: str
     created_at: str
+    driver_id: Optional[str] = None
+    city_id: str = "blr"
 
 class RescueRecordSchema(BaseModel):
     id: str

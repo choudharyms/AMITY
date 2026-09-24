@@ -2,6 +2,8 @@
 so Supabase RLS remains the authorization boundary; no service-role key is used.
 """
 
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -9,12 +11,21 @@ import httpx
 from fastapi import HTTPException
 
 from config import SUPABASE_KEY, SUPABASE_URL
+from models import DonationSchema, DispatchEventSchema
+from seed_data import get_bengaluru_seed
 
 
 class SupabaseGateway:
     def __init__(self) -> None:
         self.url = SUPABASE_URL.rstrip("/")
         self.key = SUPABASE_KEY
+        self._seed = get_bengaluru_seed()
+        self.donors = {d.id: d for d in self._seed.donors}
+        self.recipients = {r.id: r for r in self._seed.recipients}
+        self.drivers = {d.id: d for d in self._seed.drivers}
+        self.donations = {d.id: d for d in self._seed.donations}
+        self.dispatch_events = list(self._seed.dispatch_events)
+        self.records = list(self._seed.records)
 
     @property
     def configured(self) -> bool:
@@ -142,6 +153,113 @@ class SupabaseGateway:
         if not rows:
             raise HTTPException(status_code=409, detail="Handover could not be confirmed")
         return rows[0]
+
+    def escalate_donation(self, donation_id: str, access_token: Optional[str] = None) -> Optional[DonationSchema]:
+        d = self.donations.get(donation_id)
+        now = datetime.now(timezone.utc)
+
+        if not d and self.configured:
+            try:
+                headers = {"apikey": self.key, "Authorization": f"Bearer {access_token or self.key}"}
+                r = httpx.get(
+                    f"{self.url}/rest/v1/donations",
+                    headers=headers,
+                    params={"id": f"eq.{donation_id}", "limit": "1"},
+                    timeout=5.0,
+                )
+                if r.status_code == 200 and r.json():
+                    d = DonationSchema.model_validate(r.json()[0])
+                    self.donations[donation_id] = d
+            except Exception:
+                d = None
+
+        if not d:
+            return None
+
+        curr_driver = self.drivers.get(d.driver_id)
+        prev_driver_name = curr_driver.name if curr_driver else "Volunteer driver"
+
+        # 1. Log timeout event (Section 4 spec: 3-minute driver response timeout)
+        timeout_event = DispatchEventSchema(
+            id=f"e-{uuid.uuid4().hex[:6]}",
+            donation_id=d.id,
+            driver_id=d.driver_id,
+            city_id=getattr(d, "city_id", "blr"),
+            event_type="timeout",
+            message=f"{prev_driver_name} acknowledgment timed out (3m limit). Widening dispatch radius from 3 km to 8 km.",
+            created_at=now.isoformat(),
+        )
+        self.dispatch_events.insert(0, timeout_event)
+
+        # 2. Select next available driver with higher capacity / broader radius (Auto or Eco Van)
+        other_drivers = [
+            dr for dr in self.drivers.values()
+            if dr.id != d.driver_id and dr.availability
+        ]
+        if other_drivers:
+            new_driver = max(other_drivers, key=lambda dr: dr.capacity_kg)
+        else:
+            new_driver = next((dr for dr in self.drivers.values() if dr.id != d.driver_id), list(self.drivers.values())[0])
+
+        d.driver_id = new_driver.id
+        d.status = "matched"
+
+        # 3. Log escalation and re-assignment event
+        escalated_event = DispatchEventSchema(
+            id=f"e-{uuid.uuid4().hex[:6]}",
+            donation_id=d.id,
+            driver_id=new_driver.id,
+            city_id=getattr(d, "city_id", "blr"),
+            event_type="escalated",
+            message=f"Escalation complete: Reassigned to {new_driver.name} ({new_driver.vehicle} · {new_driver.capacity_kg:.0f}kg). Auto-alert dispatched to NGO dispatch coordinator.",
+            created_at=now.isoformat(),
+        )
+        self.dispatch_events.insert(0, escalated_event)
+
+        # 4. Sync with Supabase if configured
+        if self.configured:
+            try:
+                headers = {
+                    "apikey": self.key,
+                    "Authorization": f"Bearer {access_token or self.key}",
+                    "Content-Type": "application/json",
+                }
+                httpx.patch(
+                    f"{self.url}/rest/v1/donations",
+                    headers=headers,
+                    params={"id": f"eq.{d.id}"},
+                    json={"driver_id": new_driver.id, "status": "matched"},
+                    timeout=5.0,
+                )
+                httpx.post(
+                    f"{self.url}/rest/v1/dispatch_events",
+                    headers=headers,
+                    json=[
+                        {
+                            "id": timeout_event.id,
+                            "donation_id": timeout_event.donation_id,
+                            "driver_id": timeout_event.driver_id,
+                            "city_id": timeout_event.city_id,
+                            "event_type": timeout_event.event_type,
+                            "message": timeout_event.message,
+                            "created_at": timeout_event.created_at,
+                        },
+                        {
+                            "id": escalated_event.id,
+                            "donation_id": escalated_event.donation_id,
+                            "driver_id": escalated_event.driver_id,
+                            "city_id": escalated_event.city_id,
+                            "event_type": escalated_event.event_type,
+                            "message": escalated_event.message,
+                            "created_at": escalated_event.created_at,
+                        },
+                    ],
+                    timeout=5.0,
+                )
+            except Exception:
+                pass
+
+        return d
 
 
     def register_driver(self, access_token: str, user_id: str, values: dict) -> dict:

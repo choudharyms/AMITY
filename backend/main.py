@@ -14,6 +14,7 @@ from nlp_intake import parse_donor_message
 from routing_engine import compare_routing_strategies
 from safety_engine import calculate_safe_window, parse_iso
 from supabase_gateway import db
+from notifications import notifications
 
 app = FastAPI(
     title="AaharSetu Food Rescue API",
@@ -55,14 +56,17 @@ def snapshot_as_models(access_token: str, city_id: str):
 
 @app.get("/api/health")
 def get_health() -> Dict[str, Any]:
+    notifications.reload_config()
     return {
         "ok": True,
         "service": "AaharSetu",
         "database": "supabase" if db.configured else "unavailable",
         "routing": "ors" if ORS_API_KEY else "unavailable",
         "gemini": bool(GEMINI_API_KEY),
-        "telegram": bool(TELEGRAM_BOT_TOKEN),
-        "telegram_target": bool(TELEGRAM_CHAT_ID),
+        "telegram": bool(notifications.bot_token),
+        "telegram_target": bool(notifications.chat_id),
+        "web_push": bool(notifications.vapid_public_key),
+        "web_push_subscribers": len(notifications._subscriptions),
         "deployed": "configured",
         "cities": len(CITY_DIRECTORY),
     }
@@ -137,7 +141,17 @@ def create_donation(
         "raw_text": intent.source_text,
         "is_synthetic": False,
     }
-    return db.create_donation(user["token"], values)
+    result = db.create_donation(user["token"], values)
+    try:
+        notifications.broadcast_alert(
+            title="🌿 New Donation Posted",
+            body=f"{values['qty_kg']} kg of {values['item']} ({values['category']}) posted in {selected_city.upper()}! Safe until {safe_until.strftime('%H:%M UTC')}.",
+            data={"donation_id": result.get("id") if isinstance(result, dict) else getattr(result, "id", None), "city_id": selected_city, "url": "/"},
+            city_id=selected_city,
+        )
+    except Exception:
+        pass
+    return result
 
 
 @app.get("/api/donations/{donation_id}/matches", response_model=List[MatchCandidate])
@@ -192,7 +206,18 @@ def match_donation(
     top_match = next((candidate for candidate in candidates if candidate.is_deliverable), None)
     if not top_match:
         raise HTTPException(status_code=409, detail="No safe, available recipient can receive this donation")
-    return db.assign_match(user["token"], donation_id, city_id, top_match.recipient.id, drivers[0]["id"])
+    matched = db.assign_match(user["token"], donation_id, city_id, top_match.recipient.id, drivers[0]["id"])
+    try:
+        driver_name = drivers[0].get("name", "Assigned driver")
+        notifications.broadcast_alert(
+            title="🤝 Rescue Matched & Dispatched",
+            body=f"{donation.item} ({donation.qty_kg} kg) assigned to {driver_name} for recipient {top_match.recipient.name}!",
+            data={"donation_id": donation_id, "city_id": city_id, "url": "/"},
+            city_id=city_id,
+        )
+    except Exception:
+        pass
+    return matched
 
 
 @app.post("/api/donations/{donation_id}/pickup", response_model=DonationSchema)
@@ -220,6 +245,15 @@ def escalate_donation(id: str):
     updated = db.escalate_donation(id)
     if not updated:
         raise HTTPException(status_code=404, detail="Donation not found")
+    try:
+        notifications.broadcast_alert(
+            title="🚨 CRITICAL: Safe Window Closing Soon!",
+            body=f"Donation #{id[:8]} safe window is expiring! Priority escalated to urgent dispatch.",
+            data={"donation_id": id, "url": "/"},
+            city_id=None,
+        )
+    except Exception:
+        pass
     return updated
 
 
@@ -288,3 +322,85 @@ def register_donor(
         except Exception:
             pass  # Non-critical; the donor record still gets created.
     return db.register_donor(user["token"], user["id"], values)
+
+
+# ==================== TELEGRAM NOTIFICATION ROUTES ====================
+
+class TelegramConfigureRequest(BaseModel):
+    chat_id: str
+
+
+@app.get("/api/telegram/status")
+def telegram_status() -> Dict[str, Any]:
+    return notifications.get_telegram_status()
+
+
+@app.post("/api/telegram/detect")
+def telegram_detect() -> Dict[str, Any]:
+    return notifications.detect_telegram_chat()
+
+
+@app.post("/api/telegram/configure")
+def telegram_configure(payload: TelegramConfigureRequest) -> Dict[str, Any]:
+    return notifications.set_telegram_chat(payload.chat_id)
+
+
+@app.post("/api/telegram/test-alert")
+def telegram_test_alert() -> Dict[str, Any]:
+    res = notifications.send_telegram_alert(
+        "🚨 *AaharSetu Live Alert Test*\n\n"
+        "This is a verified test broadcast from the AaharSetu Emergency Food Rescue Coordination System.\n"
+        "Your Telegram connection is working and ready for real-time dispatch alerts! 🟢"
+    )
+    if not res.get("sent"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Failed to send Telegram test message"))
+    return res
+
+
+# ==================== WEB PUSH NOTIFICATION ROUTES ====================
+
+class PushSubscribeRequest(BaseModel):
+    subscription: Dict[str, Any]
+    city_id: Optional[str] = "blr"
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str
+
+
+class PushTestRequest(BaseModel):
+    title: Optional[str] = "🌿 AaharSetu Food Rescue Alert"
+    body: Optional[str] = "Test notification: Web push and emergency dispatch systems are operational!"
+    city_id: Optional[str] = None
+
+
+@app.get("/api/push/vapid-public-key")
+def push_public_key() -> Dict[str, str]:
+    pub_key = notifications.get_vapid_public_key()
+    if not pub_key:
+        raise HTTPException(status_code=503, detail="VAPID keys are not configured")
+    return {"publicKey": pub_key}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(payload: PushSubscribeRequest) -> Dict[str, Any]:
+    try:
+        return notifications.add_push_subscription(payload.subscription, payload.city_id or "blr")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(payload: PushUnsubscribeRequest) -> Dict[str, Any]:
+    return notifications.remove_push_subscription(payload.endpoint)
+
+
+@app.post("/api/push/test")
+def push_test(payload: PushTestRequest) -> Dict[str, Any]:
+    return notifications.broadcast_alert(
+        title=payload.title or "🌿 AaharSetu Food Rescue Alert",
+        body=payload.body or "Emergency dispatch test notification.",
+        data={"url": "/", "type": "test_alert"},
+        city_id=payload.city_id,
+        send_telegram=False,
+    )

@@ -21,6 +21,7 @@ import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
 import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
+import { WorkspacesView } from '@/components/workspaces-view'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -33,6 +34,7 @@ import { cities } from './cities'
 
 const descriptions: Record<Section, string> = {
   overview: "Good food. Better destinations. Let's make every rescue count.",
+  workspaces: 'Municipal food rescue networks across India. Select an operational territory.',
   donations: 'A little surplus can make a big difference. Keep it moving.',
   dispatch: 'The right food, the right route, before the window closes.',
   recipients: 'Open doors, available capacity, and communities ready to receive.',
@@ -186,6 +188,8 @@ export default function App({
         session={session} profile={profile ?? undefined}
         signIn={openLogin} signOut={signOut}
         activeCount={active?.length} help={() => setInfo('help')}
+        cityId={cityId} onCityChange={onCityChange}
+        source={source}
         onBackToLanding={onBackToLanding}
       />
 
@@ -195,12 +199,22 @@ export default function App({
             <Button variant="ghost" size="icon" className="mobile-menu" aria-label="Open navigation" onClick={() => setMobile(true)}>
               <Menu />
             </Button>
-            <span>Workspace</span>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-medium text-xs cursor-pointer"
+              onClick={() => setSection('workspaces')}
+            >
+              Workspace
+            </button>
             <ChevronRight size={13} />
             <strong>{sectionNames[section]}</strong>
           </div>
           <div className="topbar-actions">
-            <button className="location-button" onClick={() => setSection('settings')}>
+            <button
+              className="location-button"
+              onClick={() => setSection('workspaces')}
+              aria-label={`Current workspace: ${city.name}`}
+            >
               <MapPin size={14} />
               <span>{city.name}, IN</span>
               <ChevronDown size={12} />
@@ -274,6 +288,14 @@ export default function App({
 
           {/* Section routing */}
           {section === 'overview' && renderOverview()}
+          {section === 'workspaces' && (
+            <WorkspacesView
+              cityId={cityId}
+              onCityChange={onCityChange ?? (() => {})}
+              data={data}
+              source={source}
+            />
+          )}
           {section === 'donations' && <DonationsTable data={data} now={now} full openDonation={setSelected} viewAll={() => {}} />}
           {section === 'dispatch' && (
             <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
@@ -322,14 +344,30 @@ export default function App({
               <a href="https://sharefood.eatrightindia.gov.in/guidance-for-fresh-cooked-food.html" target="_blank" rel="noreferrer">Read IFSA food-safety guidance ↗</a>
             </div>
           ) : (
-            <div className="help-content">
-              {urgent?.length ? urgent.map(d => (
-                <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}>
-                  <ShieldCheck size={18} />
-                  <span>{d.item} needs attention before its safe window closes.</span>
-                  <ChevronRight size={15} />
-                </button>
-              )) : <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>}
+            <div className="help-content space-y-3">
+              {urgent?.length ? (
+                <div className="space-y-2">
+                  {urgent.map(d => (
+                    <button className="notification-item" key={d.id} onClick={() => { setSelected(d); setInfo(null) }}>
+                      <ShieldCheck size={18} />
+                      <span>{d.item} needs attention before its safe window closes.</span>
+                      <ChevronRight size={15} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p>No urgent rescue alerts right now. All active donations are within their safety windows.</p>
+              )}
+
+              <div className="mt-4 rounded-xl border border-border/70 bg-card/60 p-3 text-xs flex items-center justify-between gap-3">
+                <div>
+                  <strong className="block text-foreground">Emergency Alerts Dispatch</strong>
+                  <span className="text-[11px] text-muted-foreground">Web Push notifications and Telegram bot broadcasts.</span>
+                </div>
+                <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => { setSection('settings'); setInfo(null) }}>
+                  Manage Alerts
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -351,3 +389,4 @@ function UrgencyBanner({ count, onDispatch }: { count: number; onDispatch: () =>
     </div>
   )
 }
+
