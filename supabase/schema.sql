@@ -330,6 +330,16 @@ REVOKE INSERT, UPDATE, DELETE ON TABLE donations FROM authenticated;
 GRANT INSERT (city_id, donor_id, item, category, qty_kg, prepared_at, temp_c, safe_until, status, raw_text, is_synthetic)
     ON donations TO authenticated;
 
+-- Self-registration grants: each role can insert their own network profile record.
+-- The city_id and user_id are always set server-side in the API layer.
+GRANT INSERT (city_id, user_id, name, area, latitude, longitude, availability, vehicle, capacity_kg, is_synthetic, reliability)
+    ON drivers TO authenticated;
+GRANT INSERT (city_id, user_id, name, area, latitude, longitude, capacity_kg, reserved_kg, accepts, need_level, open_hours, approved, is_open, reliability, is_synthetic)
+    ON recipients TO authenticated;
+GRANT INSERT (city_id, user_id, name, area, latitude, longitude, license_no, license_verified, is_synthetic)
+    ON donors TO authenticated;
+
+
 CREATE OR REPLACE FUNCTION public.assign_donation_match(
     p_donation_id TEXT, p_city_id TEXT, p_recipient_id TEXT, p_driver_id TEXT
 )

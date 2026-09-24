@@ -9,7 +9,7 @@ from auth import authenticated_user, require_roles
 from cities import CITY_BY_ID, CITY_DIRECTORY
 from config import ALLOWED_ORIGINS, GEMINI_API_KEY, ORS_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from matching_engine import match_donation_to_recipients
-from models import DonationCreate, DonationSchema, MatchCandidate, NLPParseRequest, NLPParseResponse, RouteComparisonResult
+from models import DonationCreate, DonationSchema, MatchCandidate, NLPParseRequest, NLPParseResponse, RouteComparisonResult, DriverRegister, RecipientRegister, DonorRegister
 from nlp_intake import parse_donor_message
 from routing_engine import compare_routing_strategies
 from safety_engine import calculate_safe_window, parse_iso
@@ -275,6 +275,53 @@ def get_route_comparison(
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+# ---------- Self-registration endpoints ----------
+
+@app.post("/api/register/driver")
+def register_driver(
+    payload: DriverRegister,
+    city_id: str = Query(default="blr"),
+    user: Dict[str, Any] = Depends(require_roles("driver")),
+) -> Dict[str, Any]:
+    """A newly approved driver self-registers their location and vehicle details."""
+    selected_city = require_city(city_id)
+    values = payload.model_dump(exclude_none=True)
+    values["city_id"] = selected_city
+    return db.register_driver(user["token"], user["id"], values)
+
+
+@app.post("/api/register/recipient")
+def register_recipient(
+    payload: RecipientRegister,
+    city_id: str = Query(default="blr"),
+    user: Dict[str, Any] = Depends(require_roles("recipient", "shelter")),
+) -> Dict[str, Any]:
+    """A recipient organisation self-registers to receive food rescues."""
+    selected_city = require_city(city_id)
+    values = payload.model_dump(exclude_none=True)
+    values["city_id"] = selected_city
+    return db.register_recipient(user["token"], user["id"], values)
+
+
+@app.post("/api/register/donor")
+def register_donor(
+    payload: DonorRegister,
+    city_id: str = Query(default="blr"),
+    user: Dict[str, Any] = Depends(require_roles("donor")),
+) -> Dict[str, Any]:
+    """A donor self-registers their pickup location and FSSAI details."""
+    selected_city = require_city(city_id)
+    values = payload.model_dump(exclude_none=True)
+    values["city_id"] = selected_city
+    # Propagate FSSAI license to profile if provided
+    if payload.fssai_license and not user["profile"].get("fssai_license"):
+        try:
+            db.update_profile(user["token"], user["id"], {"fssai_license": payload.fssai_license})
+        except Exception:
+            pass  # Non-critical; the donor record still gets created.
+    return db.register_donor(user["token"], user["id"], values)
 
 
 # ==================== TELEGRAM NOTIFICATION ROUTES ====================

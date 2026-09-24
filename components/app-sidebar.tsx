@@ -6,15 +6,47 @@ import { Badge } from '@/components/ui/badge'
 import type { Section } from '@/src/types'
 import { cities, type City } from '@/src/cities'
 import type { Session } from '@supabase/supabase-js'
+import type { AccountProfile } from '@/src/use-profile'
 
-const operations = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'workspaces', label: 'City networks', icon: Globe },
-  { id: 'donations', label: 'Donations', icon: Boxes },
-  { id: 'dispatch', label: 'Dispatch & routes', icon: Route },
-  { id: 'recipients', label: 'Recipients', icon: HeartHandshake },
-  { id: 'drivers', label: 'Volunteer drivers', icon: Bike },
-] as const
+// Role-based nav: each role only sees what's relevant to them
+function roleNav(role?: AccountProfile['role']) {
+  if (role === 'coordinator') {
+    return [
+      { id: 'overview' as Section, label: 'Overview', icon: LayoutDashboard },
+      { id: 'donations' as Section, label: 'Donations', icon: Boxes },
+      { id: 'dispatch' as Section, label: 'Dispatch & routes', icon: Route },
+      { id: 'recipients' as Section, label: 'Recipients', icon: HeartHandshake },
+      { id: 'drivers' as Section, label: 'Volunteer drivers', icon: Bike },
+    ]
+  }
+  if (role === 'donor') {
+    return [
+      { id: 'overview' as Section, label: 'Overview', icon: LayoutDashboard },
+      { id: 'donations' as Section, label: 'My donations', icon: Boxes },
+    ]
+  }
+  if (role === 'driver') {
+    return [
+      { id: 'overview' as Section, label: 'Overview', icon: LayoutDashboard },
+      { id: 'dispatch' as Section, label: 'My pickups', icon: Bike },
+    ]
+  }
+  if (role === 'recipient' || role === 'shelter') {
+    return [
+      { id: 'overview' as Section, label: 'Overview', icon: LayoutDashboard },
+      { id: 'donations' as Section, label: 'Incoming food', icon: Boxes },
+      { id: 'recipients' as Section, label: 'My organisation', icon: HeartHandshake },
+    ]
+  }
+  // Default / unauthenticated
+  return [
+    { id: 'overview' as Section, label: 'Overview', icon: LayoutDashboard },
+    { id: 'donations' as Section, label: 'Donations', icon: Boxes },
+    { id: 'dispatch' as Section, label: 'Dispatch & routes', icon: Route },
+    { id: 'recipients' as Section, label: 'Recipients', icon: HeartHandshake },
+    { id: 'drivers' as Section, label: 'Volunteer drivers', icon: Bike },
+  ]
+}
 
 export const sectionNames: Record<Section, string> = {
   overview: 'Overview',
@@ -27,12 +59,21 @@ export const sectionNames: Record<Section, string> = {
   settings: 'Workspace settings',
 }
 
+const roleLabel: Record<AccountProfile['role'], string> = {
+  coordinator: 'Network Coordinator',
+  donor: 'Food Donor',
+  driver: 'Volunteer Driver',
+  recipient: 'Recipient Organisation',
+  shelter: 'Shelter',
+}
+
 export function AppSidebar({
   section,
   setSection,
   mobileOpen,
   close,
   session,
+  profile,
   signIn,
   signOut,
   activeCount,
@@ -47,6 +88,7 @@ export function AppSidebar({
   mobileOpen: boolean
   close: () => void
   session: Session | null | undefined
+  profile?: AccountProfile
   signIn: () => void
   signOut: () => void
   activeCount?: number
@@ -86,6 +128,11 @@ export function AppSidebar({
     setDropdownOpen(false)
   }
 
+  const navItems = roleNav(profile?.role)
+  const initials = profile?.display_name?.trim()
+    ? profile.display_name.trim().split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : undefined
+
   return (
     <>
       {mobileOpen && <button aria-label="Close navigation" className="sidebar-backdrop" onClick={close} />}
@@ -116,7 +163,7 @@ export function AppSidebar({
             </span>
             <span>
               <strong>{currentCity.name} network</strong>
-              <small>{currentCity.state} · {source === 'supabase' ? 'Live workspace' : 'Pilot demo'}</small>
+              <small>{session && profile ? roleLabel[profile.role] : `${currentCity.state} · ${source === 'supabase' ? 'Live workspace' : 'Pilot demo'}`}</small>
             </span>
             <ChevronDown size={14} className={cn('transition-transform duration-200 text-muted-foreground', dropdownOpen && 'rotate-180 text-primary')} />
           </button>
@@ -169,7 +216,7 @@ export function AppSidebar({
 
         <div className="nav-section-label">WORKSPACE</div>
         <nav aria-label="Main navigation" className="sidebar-nav">
-          {operations.map(({ id, label, icon: Icon }) => (
+          {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => navigate(id)}
@@ -226,10 +273,12 @@ export function AppSidebar({
         </button>
 
         <div className="sidebar-profile">
-          <span className="profile-avatar">{session ? <Users size={18} /> : <ShieldCheck size={19} />}</span>
+          <span className="profile-avatar">
+            {session && initials ? <span style={{ fontSize: 13, fontWeight: 700 }}>{initials}</span> : session ? <Users size={18} /> : <ShieldCheck size={19} />}
+          </span>
           <button onClick={signIn} className="profile-text text-left">
-            <strong>{session ? (session.user.email?.split('@')[0] ?? 'Rescue partner') : 'Pilot visitor'}</strong>
-            <small>{session ? 'Signed in securely' : 'Sign in to participate'}</small>
+            <strong>{session ? (profile?.display_name || session.user.email?.split('@')[0] || 'Rescue partner') : 'Pilot visitor'}</strong>
+            <small>{session ? (profile ? roleLabel[profile.role] : 'Loading profile…') : 'Sign in to participate'}</small>
           </button>
           {session && (
             <Button variant="ghost" size="icon-sm" aria-label="Sign out" onClick={signOut}>

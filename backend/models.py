@@ -175,3 +175,37 @@ class ActiveRoutePath(BaseModel):
     driver_coords: Optional[List[float]] = None
     distance_km: float
     geometry: Dict[str, Any]
+
+
+# ---------- Self-registration request models ----------
+
+class DriverRegister(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    area: str = Field(default="", max_length=160)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    vehicle: str = Field(default="Bike", max_length=60)
+    capacity_kg: float = Field(default=25.0, gt=0, le=5000)
+    phone: Optional[str] = Field(default=None, max_length=40)
+
+
+class RecipientRegister(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    area: str = Field(min_length=1, max_length=160)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    capacity_kg: float = Field(default=50.0, gt=0, le=50000)
+    need_level: int = Field(default=3, ge=1, le=5)
+    accepts: List[Category] = Field(default_factory=lambda: ["cooked_hot", "cooked_cold", "packaged", "produce", "bakery"])
+    open_hours: Optional[str] = Field(default="09:00 - 22:00", max_length=60)
+    phone: Optional[str] = Field(default=None, max_length=40)
+
+
+class DonorRegister(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    area: str = Field(min_length=1, max_length=160)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    organization: Optional[str] = Field(default=None, max_length=160)
+    fssai_license: Optional[str] = Field(default=None, max_length=40)
+    phone: Optional[str] = Field(default=None, max_length=40)

@@ -21,9 +21,10 @@ export default defineConfig(({ mode }) => {
         importScripts: ['/push-worker.js'],
         navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/frames/],
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 3000000,
       },
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
@@ -40,6 +41,30 @@ export default defineConfig(({ mode }) => {
       allowedHosts: ['.vusercontent.net', '.vercel.run', '.vercel.app', 'localhost'],
       watch: { ignored: ['**/scratch/**', '**/.edge-temp*/**'] },
       proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } },
+    },
+    build: {
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('maplibre-gl') || id.includes('react-map-gl')) {
+                return 'vendor-maplibre'
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-lucide'
+              }
+              if (id.includes('@supabase')) {
+                return 'vendor-supabase'
+              }
+              if (id.includes('react') || id.includes('react-dom') || id.includes('swr')) {
+                return 'vendor-react'
+              }
+              return 'vendor-common'
+            }
+          },
+        },
+      },
     },
   }
 })
