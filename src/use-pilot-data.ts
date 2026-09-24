@@ -67,15 +67,17 @@ export function usePilotData(cityId: string) {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return
 
+    // Use a unique channel name per effect run to avoid re-using already-subscribed channels in React StrictMode
+    const channelName = `aaharsetu-realtime-${cityId}-${Math.random().toString(36).slice(2, 8)}`
     const channel = supabase
-      .channel(`aaharsetu-realtime-${cityId}`)
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })
       .subscribe()
 
     return () => {
-      if (supabase) {
+      if (supabase && channel) {
         supabase.removeChannel(channel)
       }
     }
