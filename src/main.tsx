@@ -6,8 +6,11 @@ import App from './app'
 import Landing from './landing'
 import { usePilotData, useBackendHealth } from './use-pilot-data'
 import { getSavedCityId, saveCityId } from './cities'
+import { registerSW } from 'virtual:pwa-register'
 import './styles.css'
 import './landing.css'
+
+registerSW({ immediate: true })
 
 function Root() {
   const [showDashboard, setShowDashboard] = useState(() => {

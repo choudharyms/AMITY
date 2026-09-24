@@ -9,11 +9,13 @@ import {
   LockKeyhole,
   Map,
   MessageCircle,
+  Monitor,
   RefreshCw,
   Route,
   Send,
   ShieldCheck,
   Sparkles,
+  Volume2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +86,7 @@ export function SettingsView({
     permission: 'default',
     subscribed: false,
     endpoint: null,
+    isDesktop: false,
   })
   const [updatingPush, setUpdatingPush] = useState(false)
   const [testingPush, setTestingPush] = useState(false)
@@ -602,9 +605,18 @@ export function SettingsView({
         <div className="mt-3 rounded-xl border border-border/70 bg-card/60 p-4 text-xs leading-relaxed space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h3 className="font-semibold text-foreground text-xs">Real-Time Browser Dispatch Alerts</h3>
+              <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+                <span>{pushStatus.isDesktop ? 'Desktop System & Web Push Alerts' : 'Real-Time Browser Dispatch Alerts'}</span>
+                {pushStatus.isDesktop && (
+                  <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Monitor size={10} className="mr-1 inline" /> Desktop Ready
+                  </Badge>
+                )}
+              </div>
               <p className="text-muted-foreground text-[11px] mt-0.5">
-                Receive instant notifications on your desktop or mobile browser when a new food donation is posted or safe-window expiry escalates.
+                {pushStatus.isDesktop
+                  ? 'Receive native Windows & macOS Notification Center popups with audible emergency chimes even when the browser is minimized.'
+                  : 'Receive instant notifications on your browser when a new food donation is posted or safe-window expiry escalates.'}
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -613,13 +625,15 @@ export function SettingsView({
                 variant={pushStatus.subscribed ? 'outline' : 'default'}
                 onClick={handleTogglePush}
                 disabled={updatingPush || !pushStatus.supported}
-                className="gap-1.5 text-xs"
+                className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <Bell size={12} />
                 {updatingPush
                   ? 'Configuring…'
                   : pushStatus.subscribed
                   ? 'Unsubscribe'
+                  : pushStatus.isDesktop
+                  ? 'Enable Desktop Push'
                   : 'Enable Push Alerts'}
               </Button>
               {pushStatus.subscribed && (
@@ -630,16 +644,23 @@ export function SettingsView({
                   disabled={testingPush}
                   className="gap-1.5 text-xs"
                 >
-                  <Send size={12} />
-                  {testingPush ? 'Testing…' : 'Test Push'}
+                  <Volume2 size={12} className={testingPush ? 'animate-pulse text-emerald-500' : ''} />
+                  {testingPush ? 'Testing…' : 'Test Desktop Alert & Chime'}
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
             <div className="rounded-lg bg-background/50 border border-border/40 p-2">
-              <span className="text-muted-foreground block text-[10px]">Browser Push</span>
+              <span className="text-muted-foreground block text-[10px]">Environment</span>
+              <span className="font-medium text-foreground flex items-center gap-1">
+                {pushStatus.isDesktop ? <Monitor size={12} /> : null}
+                {pushStatus.isDesktop ? 'Desktop OS' : 'Mobile / Tablet'}
+              </span>
+            </div>
+            <div className="rounded-lg bg-background/50 border border-border/40 p-2">
+              <span className="text-muted-foreground block text-[10px]">Notification API</span>
               <span className="font-medium text-foreground">
                 {pushStatus.supported ? 'Supported' : 'Not supported'}
               </span>
@@ -650,8 +671,8 @@ export function SettingsView({
                 {pushStatus.permission}
               </span>
             </div>
-            <div className="rounded-lg bg-background/50 border border-border/40 p-2 col-span-2 sm:col-span-1">
-              <span className="text-muted-foreground block text-[10px]">Active Subscribers</span>
+            <div className="rounded-lg bg-background/50 border border-border/40 p-2">
+              <span className="text-muted-foreground block text-[10px]">Subscribers</span>
               <span className="font-medium text-foreground">
                 {backend?.web_push_subscribers ?? (pushStatus.subscribed ? 1 : 0)} connected
               </span>

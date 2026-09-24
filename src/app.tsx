@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
-import { Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle, MapPin, Menu, Plus, ShieldCheck } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle, MapPin, Menu, Monitor, Plus, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
 import { supabase } from '@/lib/supabase'
 import { AppSidebar, sectionNames } from '@/components/app-sidebar'
 import { AuthDialog } from '@/components/auth-dialog'
@@ -67,6 +68,9 @@ export default function App({
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
+  const [dismissDesktopPrompt, setDismissDesktopPrompt] = useState(false)
+  const [isDesktop] = useState(isDesktopBrowser)
+  const [desktopPerm, setDesktopPerm] = useState(() => typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'granted')
   const [now, setNow] = useState(Date.now())
   const { data: session } = useSession()
   const { profile, error: profileError, refresh: refreshProfile } = useProfile(session?.user.id)
@@ -93,6 +97,39 @@ export default function App({
   const urgent = active?.filter(d => new Date(d.safe_until).getTime() > now && new Date(d.safe_until).getTime() - now < 3600000)
   return <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><AppSidebar section={section} setSection={setSection} mobileOpen={mobile} close={() => setMobile(false)} session={session} signIn={() => setAuth(true)} signOut={signOut} activeCount={active?.length} help={() => setInfo('help')} cityId={cityId} onCityChange={onCityChange} source={source} onBackToLanding={onBackToLanding} /><div className="app-main"><header className="topbar"><div className="breadcrumb"><Button variant="ghost" size="icon" className="mobile-menu" aria-label="Open navigation" onClick={() => setMobile(true)}><Menu /></Button><button type="button" className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-medium text-xs cursor-pointer" onClick={() => setSection('workspaces')}>Workspace</button><ChevronRight size={13} /><strong>{sectionNames[section]}</strong></div><div className="topbar-actions"><button className="location-button" onClick={() => setSection('workspaces')} aria-label={`Current workspace: ${city.name}`}><MapPin size={14} /><span>{city.name}, IN</span><ChevronDown size={12} /></button><span className="topbar-divider" /><Button variant="ghost" size="icon" aria-label="Safety guidelines" onClick={() => setInfo('help')}><CircleHelp /></Button><Button variant="ghost" size="icon" aria-label="View notifications" onClick={() => setInfo('notifications')}><Bell /></Button><button className="topbar-avatar" onClick={() => setAuth(true)} aria-label={session ? 'Account' : 'Sign in'}>{session ? 'RP' : <Leaf size={17} />}</button></div></header>
     <main id="main-content" className="page-content"><div className="page-heading"><div><div className="heading-eyebrow"><span className="status-dot" />AAHARSETU · {city.name.toUpperCase()} FOOD RESCUE NETWORK</div><h1>{section === 'overview' ? 'Rescue overview' : sectionNames[section]}</h1><p>{descriptions[section]}</p></div><div className="heading-actions"><Badge variant="outline">{source === 'supabase' ? 'Supabase Live' : source === 'offline' ? 'Synthetic demo' : 'Sign in for live data'}</Badge><Button size="lg" onClick={() => setPosting(true)} disabled={!canPost}><Plus data-icon="inline-start" />Post a donation</Button></div></div>
+    {isDesktop && desktopPerm === 'default' && !dismissDesktopPrompt && (
+      <div className="desktop-notification-bar">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            <Monitor size={17} />
+          </div>
+          <div>
+            <strong className="text-xs text-foreground block">Desktop Emergency Rescue Notifications</strong>
+            <span className="text-[11px] text-muted-foreground">Enable Windows & Mac system alerts with audio chimes when urgent food rescues are posted or expire.</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+            onClick={async () => {
+              const res = await subscribeToWebPush(cityId)
+              if (res.success) {
+                toast.success(res.message)
+                setDesktopPerm('granted')
+              } else {
+                toast.error(res.message)
+              }
+            }}
+          >
+            <Bell size={12} /> Enable Desktop Alerts
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setDismissDesktopPrompt(true)}>
+            Dismiss
+          </Button>
+        </div>
+      </div>
+    )}
     {callback.error && <Alert variant="destructive" className="mb-5"><AlertTitle>Confirmation link unavailable</AlertTitle><AlertDescription>This link may have expired or already been used. Please try signing in or request a new confirmation.</AlertDescription></Alert>}
     {callback.isLoading && <p className="flex gap-2 items-center mb-4"><LoaderCircle size={16} className="animate-spin" />Confirming your email…</p>}
     {!data && <div className="setup-banner"><span className="setup-banner-icon"><Database size={16} /></span><p><strong>{error?.message ?? 'Connect to the live rescue network'}</strong><span>Sign in to load city-scoped records. Demo locations are never substituted for live operational data.</span></p><button onClick={() => error?.message.includes('Sign in') ? setAuth(true) : setSection('settings')}>{error?.message.includes('Sign in') ? 'Sign in' : 'View setup'}<ChevronRight size={14} /></button></div>}
