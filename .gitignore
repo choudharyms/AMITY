@@ -41,3 +41,14 @@ Thumbs.db
 __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
+
+# Agents & AI Customizations
+.agents/
+.agent/
+_agents/
+_agent/
+skills-lock.json
+
+# Supabase Local Cache
+supabase/.temp/
+
