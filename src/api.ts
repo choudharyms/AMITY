@@ -71,13 +71,27 @@ export async function createDonation(payload: DonationIntent): Promise<{ id: str
   }
 }
 
-export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver'): Promise<void> {
+export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate'): Promise<void> {
   try {
     await request(`/api/donations/${id}/${action}`, { method: 'POST', body: '{}' })
-    toast.success(action === 'match' ? 'Route checked and rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery verified. Impact updated.')
+    const msg = action === 'match' 
+      ? 'Route checked and rescue matched.' 
+      : action === 'pickup' 
+      ? 'Pickup confirmed.' 
+      : action === 'deliver'
+      ? 'Delivery verified. Impact updated.'
+      : 'Timeout simulated. Search radius widened (3km -> 8km) and reassigned.'
+    toast.success(msg)
   } catch {
     updateLocalDonation(id, action)
-    toast.success(action === 'match' ? 'Route checked and rescue matched.' : action === 'pickup' ? 'Pickup confirmed.' : 'Delivery verified. Impact updated.')
+    const msg = action === 'match' 
+      ? 'Route checked and rescue matched.' 
+      : action === 'pickup' 
+      ? 'Pickup confirmed.' 
+      : action === 'deliver'
+      ? 'Delivery verified. Impact updated.'
+      : 'Timeout simulated. Search radius widened (3km -> 8km) and reassigned.'
+    toast.success(msg)
   }
 }
 

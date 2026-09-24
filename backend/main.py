@@ -94,6 +94,14 @@ def deliver_donation(id: str):
         raise HTTPException(status_code=404, detail="Donation not found")
     return updated
 
+@app.post("/api/donations/{id}/escalate", response_model=DonationSchema)
+def escalate_donation(id: str):
+    updated = db.escalate_donation(id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Donation not found")
+    return updated
+
+
 @app.get("/api/routes/compare", response_model=RouteComparisonResult)
 def get_route_comparison():
     snapshot = db.get_snapshot()

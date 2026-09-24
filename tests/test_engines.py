@@ -92,5 +92,19 @@ class TestAaharSetuEngines(unittest.TestCase):
         self.assertGreater(parsed.qty_kg, 0)
         self.assertEqual(parsed.temp_c, 70.0)
 
+    def test_timeout_escalation(self):
+        from database import db
+        # Escalate d-1003 (which is in matched status)
+        escalated = db.escalate_donation("d-1003")
+        self.assertIsNotNone(escalated)
+        self.assertEqual(escalated.status, "matched")
+        
+        # Check that dispatch events logged the timeout and escalation
+        recent_events = db.dispatch_events[:2]
+        event_types = [e.event_type for e in recent_events]
+        self.assertIn("timeout", event_types)
+        self.assertIn("escalated", event_types)
+
 if __name__ == '__main__':
     unittest.main()
+

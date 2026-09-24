@@ -130,4 +130,49 @@ class PilotDatabase:
 
         return d
 
+    def escalate_donation(self, donation_id: str) -> Optional[DonationSchema]:
+        d = self.donations.get(donation_id)
+        if not d:
+            return None
+
+        now = datetime.now(timezone.utc)
+        curr_driver = self.drivers.get(d.driver_id)
+        prev_driver_name = curr_driver.name if curr_driver else "Volunteer driver"
+
+        # 1. Log timeout event (Section 4 spec: 3-minute driver response timeout)
+        self.dispatch_events.insert(0, DispatchEventSchema(
+            id=f"e-{uuid.uuid4().hex[:6]}",
+            donation_id=d.id,
+            driver_id=d.driver_id,
+            event_type="timeout",
+            message=f"{prev_driver_name} acknowledgment timed out (3m limit). Widening dispatch radius from 3 km to 8 km.",
+            created_at=now.isoformat()
+        ))
+
+        # 2. Select next available driver with higher capacity / broader radius (Auto or Eco Van)
+        other_drivers = [
+            dr for dr in self.drivers.values() 
+            if dr.id != d.driver_id and dr.availability
+        ]
+        if other_drivers:
+            new_driver = max(other_drivers, key=lambda dr: dr.capacity_kg)
+        else:
+            new_driver = next((dr for dr in self.drivers.values() if dr.id != d.driver_id), list(self.drivers.values())[0])
+
+        d.driver_id = new_driver.id
+        d.status = "matched"
+
+        # 3. Log escalation and re-assignment event
+        self.dispatch_events.insert(0, DispatchEventSchema(
+            id=f"e-{uuid.uuid4().hex[:6]}",
+            donation_id=d.id,
+            driver_id=new_driver.id,
+            event_type="escalated",
+            message=f"Escalation complete: Reassigned to {new_driver.name} ({new_driver.vehicle} · {new_driver.capacity_kg:.0f}kg). Auto-alert dispatched to NGO dispatch coordinator.",
+            created_at=now.isoformat()
+        ))
+
+        return d
+
 db = PilotDatabase()
+

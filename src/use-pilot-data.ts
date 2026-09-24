@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import useSWR from 'swr'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { buildSeed } from './seed'
@@ -49,6 +50,35 @@ export function usePilotData() {
     },
     { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 30000, fallbackData: { data: buildSeed(), source: 'offline' } },
   )
+
+  // Attach Supabase Realtime WebSocket subscription for zero-reload live sync
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return
+
+    const channel = supabase
+      .channel('aaharsetu-realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'donations' },
+        () => { mutate() }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dispatch_events' },
+        () => { mutate() }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'records' },
+        () => { mutate() }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [mutate])
+
   return { data: data?.data ?? buildSeed(), source: data?.source ?? 'offline', error, isLoading, refresh: mutate }
 }
 

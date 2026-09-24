@@ -141,13 +141,53 @@ Or run individually:
 
 ---
 
+## 📚 Open-Source Libraries & Attribution
+
+In accordance with AMIHACKS 1.0 guidelines (Section 2 & 7: *Open-source libraries only, properly credited and licensed*), AaharSetu integrates the following verified open-source libraries:
+
+| Purpose | Library / Tool | Repository | License |
+|---|---|---|---|
+| **API Framework** | FastAPI (v0.115) | [tiangolo/fastapi](https://github.com/fastapi/fastapi) | MIT |
+| **Data Schemas** | Pydantic (v2.10) | [pydantic/pydantic](https://github.com/pydantic/pydantic) | MIT |
+| **AI Structured Intake** | Google GenAI SDK | [googleapis/python-genai](https://github.com/googleapis/python-genai) | Apache-2.0 |
+| **Spatial Database** | PostGIS | [postgis/postgis](https://github.com/postgis/postgis) | GPL-2.0-or-later |
+| **Cloud DB & Auth** | Supabase JS / SSR | [supabase/supabase-js](https://github.com/supabase/supabase-js) | MIT |
+| **Map Rendering** | MapLibre GL JS | [maplibre/maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js) | BSD-3-Clause |
+| **React Map Wrapper** | React Map GL | [visgl/react-map-gl](https://github.com/visgl/react-map-gl) | MIT |
+| **Map Tiles** | OpenFreeMap (Positron) | [hyperknot/openfreemap](https://github.com/hyperknot/openfreemap) | Open Data / CC-BY |
+| **Routing Concepts** | VROOM / OR-Tools | [VROOM-Project/vroom](https://github.com/VROOM-Project/vroom) | BSD-2-Clause / Apache-2.0 |
+| **Frontend Framework** | React 19 & Vite | [facebook/react](https://github.com/facebook/react) · [vitejs/vite](https://github.com/vitejs/vite) | MIT |
+| **Icons & Micro-UI** | Lucide React · Sonner | [lucide-icons](https://github.com/lucide-icons/lucide) · [emilkowalski/sonner](https://github.com/emilkowalski/sonner) | ISC / MIT |
+
+---
+
+## 👥 Team Contribution & Roles (AMIHACKS 1.0)
+
+| Member / Role | Core Domain & Deliverables |
+|---|---|
+| **Database & GIS Architect** | Supabase Postgres schema, PostGIS geography points, spatial GIST indexes, Realtime publication, and initial Bengaluru pilot migration. |
+| **Backend & Routing Lead** | FastAPI microservice, FSSAI countdown engine, 5-factor scoring formula, 2-opt Joint VRP optimizer, and timeout escalation workflow. |
+| **Frontend & UI/UX Engineer** | React 19 Kanban dispatch board, MapLibre GL map, QR/OTP verification modal, printable FSSAI batch label, and SWR state. |
+| **AI/NLP & Compliance Specialist** | Gemini Flash-Lite structured JSON prompt engineering, regex Hindi/Hinglish fallback parser, CO₂e/meal equivalent impact metrics, and documentation. |
+
+---
+
+## 🛡️ Hackathon Integrity & Transparency Checklist
+- **No hardcoded/fake outputs:** All distance calculations, routing comparisons, and match scores are computed dynamically from real coordinates using Haversine and 2-opt constraints.
+- **Transparent labeling:** All simulated pilot data carries clear `"Synthetic"` visual tags in the UI.
+- **Privacy & Security:** Row Level Security (RLS) is enabled across all database tables; external AI calls receive zero donor PII.
+- **Explainable logic:** Every match candidate displays a full mathematical breakdown of its 5-factor composite score.
+
+---
+
 ## 📜 Regulatory Reference & Compliance
 - **FSSAI:** [Food Safety and Standards (Recovery & Distribution of Surplus Food) Regulations, 2019](https://www.fssai.gov.in/)
 - **IFSA:** [Indian Food Sharing Alliance Guidelines for Cooked Surplus Food](https://sharefood.eatrightindia.gov.in/)
-- **Methodology & Emission Factors:** 1.8 meals / kg food rescued; 2.5 kg CO₂e / kg avoided (within IPCC / FAO pilot standard bounds).
+- **Methodology & Emission Factors:** 1.8 meals / kg food rescued; 2.5 kg CO₂e / kg avoided (within IPCC / FAO pilot standard bounds; [PubMed PMC6571599](https://pmc.ncbi.nlm.nih.gov/articles/PMC6571599/)).
 
 ---
 
 ## 👥 Authors
 Built for **AMIHACKS 1.0 (Amity University)**  
 Track A: NGO / Social Impact
+

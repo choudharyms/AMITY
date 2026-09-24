@@ -168,6 +168,25 @@ export function updateLocalDonation(id: string, action: 'match' | 'pickup' | 'de
       delivered_at: new Date(now).toISOString(),
       consume_by: donation.safe_until,
     })
+  } else if (action === 'escalate') {
+    const prevDriver = seed.drivers.find(d => d.id === donation.driver_id)
+    const newDriver = seed.drivers.find(d => d.id !== donation.driver_id && d.availability) ?? seed.drivers[1]
+    donation.driver_id = newDriver.id
+    donation.status = 'matched'
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'timeout',
+      message: `${prevDriver?.name ?? 'Volunteer'} acknowledgment timed out (3m limit). Widening dispatch radius from 3 km to 8 km.`,
+      created_at: new Date(now).toISOString(),
+    })
+    seed.dispatch_events.unshift({
+      id: `e-${Math.random().toString(36).slice(2, 7)}`,
+      donation_id: donation.id,
+      event_type: 'escalated',
+      message: `Escalation complete: Reassigned to ${newDriver.name} (${newDriver.vehicle}). Alert dispatched to dispatch coordinator.`,
+      created_at: new Date(now + 1000).toISOString(),
+    })
   }
   return donation
 }
