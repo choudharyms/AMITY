@@ -721,3 +721,76 @@
     gap: 12px 20px;
   }
 }
+
+/* ─── Navigation & CTA Enhancements (Join Us, Sign In, Ops) ─── */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-link-btn {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(240, 253, 244, 0.75);
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-link-btn:hover {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.nav-cta-join {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25) 0%, rgba(16, 185, 129, 0.15) 100%);
+  border: 1px solid rgba(134, 239, 172, 0.35);
+  color: #86efac;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.2);
+}
+
+.nav-cta-join:hover {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #040a07;
+  border-color: #86efac;
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.35);
+}
+
+.cta-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.cta-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: #f0fdf4;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  padding: 13px 24px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.cta-secondary-btn:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(134, 239, 172, 0.45);
+  color: #86efac;
+  transform: translateY(-2px);
+}
+

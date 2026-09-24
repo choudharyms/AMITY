@@ -7,7 +7,6 @@ import {
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { AppSidebar, sectionNames } from '@/components/app-sidebar'
-import { AuthDialog } from '@/components/auth-dialog'
 import { ActivityFeed } from '@/components/activity-feed'
 import { DonationDialog } from '@/components/donation-dialog'
 import { DonationForm } from '@/components/donation-form'
@@ -74,13 +73,14 @@ export default function App({
 }) {
   const [section, updateSection] = useState<Section>(getSection)
   const [mobile, setMobile] = useState(false)
-  const [auth, setAuth] = useState(false)
   const [posting, setPosting] = useState(false)
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+
+  const openLogin = () => { window.location.hash = 'login' }
 
   const { data: session } = useSession()
   const { profile, error: profileError, refresh: refreshProfile } = useProfile(session?.user.id)
@@ -184,7 +184,7 @@ export default function App({
         section={section} setSection={setSection}
         mobileOpen={mobile} close={() => setMobile(false)}
         session={session} profile={profile ?? undefined}
-        signIn={() => setAuth(true)} signOut={signOut}
+        signIn={openLogin} signOut={signOut}
         activeCount={active?.length} help={() => setInfo('help')}
         onBackToLanding={onBackToLanding}
       />
@@ -213,7 +213,7 @@ export default function App({
               <Bell />
               {!!urgent?.length && <span className="notif-dot" />}
             </Button>
-            <button className="topbar-avatar" onClick={() => setAuth(true)} aria-label={session ? 'Account' : 'Sign in'}>
+            <button className="topbar-avatar" onClick={session ? () => setSection('settings') : openLogin} aria-label={session ? 'Account settings' : 'Sign in'}>
               {session && initials ? initials : session ? <Leaf size={17} /> : <Leaf size={17} />}
             </button>
           </div>
@@ -239,7 +239,7 @@ export default function App({
               </Badge>
               {/* Only donors see "Post a donation" */}
               {(canPost || !session) && (
-                <Button size="lg" onClick={() => session ? setPosting(true) : setAuth(true)} disabled={!!session && !canPost}>
+                <Button size="lg" onClick={() => session ? setPosting(true) : openLogin()} disabled={!!session && !canPost}>
                   <Plus data-icon="inline-start" />
                   {session && !canPost && !isDonor ? 'Not a donor account' : 'Post a donation'}
                 </Button>
@@ -265,7 +265,7 @@ export default function App({
                 <strong>{error?.message ?? 'Connect to the live rescue network'}</strong>
                 <span>Sign in to load city-scoped records. Demo locations are never substituted for live operational data.</span>
               </p>
-              <button onClick={() => error?.message.includes('Sign in') ? setAuth(true) : setSection('settings')}>
+              <button onClick={() => error?.message.includes('Sign in') ? openLogin() : setSection('settings')}>
                 {error?.message.includes('Sign in') ? 'Sign in' : 'View setup'}
                 <ChevronRight size={14} />
               </button>
@@ -283,7 +283,7 @@ export default function App({
           {section === 'impact' && <ImpactView data={data} />}
           {section === 'settings' && (
             <SettingsView
-              source={source} backend={backend} cityId={cityId} onCityChange={onCityChange}
+              source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}
               accountEmail={session?.user.email} profile={profile} profileError={profileError}
               refreshProfile={refreshProfile}
             />
@@ -304,7 +304,6 @@ export default function App({
         />
       )}
 
-      <AuthDialog open={auth} onOpenChange={setAuth} cityId={cityId} />
       <DonationDialog donation={selected} data={data} now={now} close={() => setSelected(null)} />
       <DonationForm open={posting} data={data} cityId={cityId} refresh={refresh ?? (() => {})} onClose={() => setPosting(false)} />
 
@@ -345,6 +344,7 @@ function UrgencyBanner({ count, onDispatch }: { count: number; onDispatch: () =>
       <ShieldCheck size={17} />
       <p>
         <strong>{count} {count === 1 ? 'rescue needs' : 'rescues need'} attention.</strong> Less than an hour remains in the safe window.
+      </p>
       <Button variant="ghost" size="sm" onClick={onDispatch}>
         Review rescues<ChevronRight data-icon="inline-end" />
       </Button>
