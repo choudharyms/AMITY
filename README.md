@@ -116,7 +116,9 @@ ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 `.env` is gitignored. Offline mode displays only the Bengaluru synthetic demo and disables writes. With Supabase configured, the app requires sign-in and does not substitute demo records when the API fails. ORS routes are unavailable until `ORS_API_KEY` is configured. Telegram is not enabled until a destination and notification flow are configured.
 
 ### 4. Apply the database schema
-Run `supabase/schema.sql` in the Supabase SQL editor. Existing Bengaluru rows receive the `blr` city id; real records remain visible only through the new RLS policies. New users receive a donor role by default. A trusted administrator must provision their requested role and associate the account with its donor, driver, or recipient record. To promote the initial coordinator, do so from the SQL editor after verifying the account:
+Apply the migrations with `supabase db push`, or run `supabase/schema.sql` in the Supabase SQL editor after backing up existing data. The follow-up migration removes the public demo policies from the initial pilot schema and adds city/account-scoped access. Existing Bengaluru rows receive the `blr` city id. `supabase/seed.sql` contains synthetic demo rows; do not use it to reset production data.
+
+New users receive a donor role by default and a city preference. A trusted administrator must provision the operational city, requested role, and associated donor, driver, or recipient record. To promote the initial coordinator, do so from the SQL editor after verifying the account:
 
 ```sql
 UPDATE public.profiles SET role = 'coordinator' WHERE email = 'verified-coordinator@example.org';

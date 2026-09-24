@@ -14,6 +14,7 @@ class DonorSchema(BaseModel):
     license_no: Optional[str] = None
     license_verified: bool = False
     is_synthetic: bool = True
+    city_id: str = "blr"
 
 class RecipientSchema(BaseModel):
     id: str
@@ -29,6 +30,7 @@ class RecipientSchema(BaseModel):
     is_open: bool = True
     reliability: float = 0.95
     is_synthetic: bool = True
+    city_id: str = "blr"
 
 class DriverSchema(BaseModel):
     id: str
@@ -39,16 +41,18 @@ class DriverSchema(BaseModel):
     vehicle: str = "Bike"
     capacity_kg: float = 25.0
     is_synthetic: bool = True
+    city_id: str = "blr"
 
 class DonationCreate(BaseModel):
-    donor_id: str
-    item: str
+    city_id: str = "blr"
+    donor_id: str = Field(min_length=1, max_length=120)
+    item: str = Field(min_length=1, max_length=120)
     category: Category
-    qty_kg: float
-    prepared_at: str
-    temp_c: Optional[float] = None
+    qty_kg: float = Field(gt=0, le=10000)
+    prepared_at: str = Field(min_length=10, max_length=40)
+    temp_c: Optional[float] = Field(default=None, ge=-50, le=150)
     safe_until: Optional[str] = None
-    source_text: Optional[str] = None
+    source_text: Optional[str] = Field(default=None, max_length=2000)
 
 class DonationSchema(BaseModel):
     id: str
@@ -64,6 +68,7 @@ class DonationSchema(BaseModel):
     is_synthetic: bool = True
     recipient_id: Optional[str] = None
     driver_id: Optional[str] = None
+    city_id: str = "blr"
 
 class DispatchEventSchema(BaseModel):
     id: str
@@ -128,3 +133,43 @@ class RouteComparisonResult(BaseModel):
     greedy_missed_deadlines: int
     stops_count: int
     computed_at: str
+
+class SettingsSchema(BaseModel):
+    mode: Literal["pilot", "live"] = "pilot"
+    city: str = "Bengaluru, India"
+    weight_slack: float = 0.35
+    weight_proximity: float = 0.25
+    weight_need: float = 0.20
+    weight_capacity: float = 0.10
+    weight_reliability: float = 0.10
+    dispatch_buffer_mins: int = 35
+
+class UserProfileSchema(BaseModel):
+    id: str
+    email: Optional[str] = None
+    display_name: str
+    role: Literal["coordinator", "donor", "driver", "shelter"] = "coordinator"
+    organization: Optional[str] = "Bengaluru Food Rescue Network"
+    phone: Optional[str] = "+91 98765 43210"
+    fssai_license: Optional[str] = None
+    area: str = "Indiranagar, Bengaluru"
+
+class ActiveRoutePath(BaseModel):
+    donation_id: str
+    item: str
+    qty_kg: float
+    status: str
+    safe_until: str
+    donor_id: str
+    donor_name: str
+    donor_area: str
+    donor_coords: List[float]
+    recipient_id: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipient_area: Optional[str] = None
+    recipient_coords: Optional[List[float]] = None
+    driver_id: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_coords: Optional[List[float]] = None
+    distance_km: float
+    geometry: Dict[str, Any]

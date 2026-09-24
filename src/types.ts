@@ -2,22 +2,25 @@ export type Section = 'overview' | 'donations' | 'dispatch' | 'recipients' | 'dr
 export type RescueStatus = 'posted' | 'matched' | 'accepted' | 'picked_up' | 'delivered' | 'expired' | 'cancelled'
 export type Category = 'cooked_hot' | 'cooked_cold' | 'packaged' | 'produce' | 'bakery'
 export interface Donor {
-  id: string; name: string; area: string; latitude: number; longitude: number;
-  license_no: string | null; license_verified: boolean; is_synthetic: boolean;
+id: string; name: string; area: string; latitude: number; longitude: number;
+license_no: string | null; license_verified: boolean; is_synthetic: boolean; city_id?: string;
 }
 export interface Recipient {
   id: string; name: string; area: string; latitude: number; longitude: number;
   capacity_kg: number; reserved_kg: number; accepts: Category[]; need_level: number;
-  approved: boolean; is_open: boolean; reliability: number; is_synthetic: boolean;
+approved: boolean; is_open: boolean; reliability: number; is_synthetic: boolean;
+city_id?: string;
 }
 export interface Driver {
   id: string; name: string; latitude: number; longitude: number;
-  availability: boolean; vehicle: string; capacity_kg: number; is_synthetic: boolean;
+availability: boolean; vehicle: string; capacity_kg: number; is_synthetic: boolean;
+city_id?: string;
 }
 export interface Donation {
   id: string; donor_id: string; item: string; category: Category; qty_kg: number;
   prepared_at: string; temp_c: number | null; safe_until: string; status: RescueStatus;
-  created_at: string; is_synthetic: boolean; recipient_id: string | null; driver_id: string | null;
+created_at: string; is_synthetic: boolean; recipient_id: string | null; driver_id: string | null;
+city_id?: string;
 }
 export interface DispatchEvent {
   id: string; donation_id: string; event_type: string; message: string; created_at: string;

@@ -1,66 +1,45 @@
 import useSWR from 'swr'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { apiRequest } from './api'
 import { buildSeed } from './seed'
-import type { DispatchEvent, Donation, Donor, Driver, PilotData, Recipient, RescueRecord } from './types'
-
-interface PilotResult {
-  data: PilotData
-  source: 'supabase' | 'offline'
-}
-
-async function query<T>(table: string): Promise<T[]> {
-  const { data, error } = await supabase!.from(table).select('*').order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as T[]
-}
+import type { PilotData } from './types'
 
 export interface BackendHealth {
   ok: boolean
-  routing: 'ors' | 'haversine'
+  database: 'supabase' | 'unavailable'
+  routing: 'ors' | 'unavailable'
   gemini: boolean
   telegram: boolean
+  telegram_target: boolean
   deployed: string
-  message?: string
+  cities: number
 }
 
-export function usePilotData() {
-  const { data, error, isLoading, mutate } = useSWR<PilotResult>(
-    ['pilot-data', isSupabaseConfigured ? 'supabase' : 'offline'],
+export function usePilotData(cityId: string) {
+  const { data, error, isLoading, mutate } = useSWR<PilotData>(
+    ['pilot-data', cityId, isSupabaseConfigured],
     async () => {
-      if (!isSupabaseConfigured || !supabase) {
-        return { data: buildSeed(), source: 'offline' as const }
-      }
-      try {
-        const [donors, recipients, drivers, donations, dispatch_events, records] = await Promise.all([
-          query<Donor>('donors'),
-          query<Recipient>('recipients'),
-          query<Driver>('drivers'),
-          query<Donation>('donations'),
-          query<DispatchEvent>('dispatch_events'),
-          query<RescueRecord>('records'),
-        ])
-        if (!donors.length && !donations.length) {
-          return { data: buildSeed(), source: 'offline' as const }
-        }
-        return { data: { donors, recipients, drivers, donations, dispatch_events, records }, source: 'supabase' as const }
-      } catch {
-        return { data: buildSeed(), source: 'offline' as const }
-      }
+      if (!isSupabaseConfigured) return cityId === 'blr'
+        ? buildSeed()
+        : { donors: [], recipients: [], drivers: [], donations: [], dispatch_events: [], records: [] }
+      return apiRequest<PilotData>(`/api/pilot-data?city_id=${encodeURIComponent(cityId)}`)
     },
-    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 30000, fallbackData: { data: buildSeed(), source: 'offline' } },
+    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 15000 },
   )
-  return { data: data?.data ?? buildSeed(), source: data?.source ?? 'offline', error, isLoading, refresh: mutate }
+  return {
+    data: isSupabaseConfigured ? data : (data ?? (cityId === 'blr' ? buildSeed() : { donors: [], recipients: [], drivers: [], donations: [], dispatch_events: [], records: [] })),
+    source: isSupabaseConfigured ? (data ? 'supabase' as const : 'unavailable' as const) : 'offline' as const,
+    error,
+    isLoading,
+    refresh: mutate,
+  }
 }
 
 export function useBackendHealth() {
-  const { data } = useSWR<BackendHealth>('/api/health', async (path) => {
-    try {
-      const res = await fetch(path)
-      if (!res.ok) throw new Error('Backend unreachable')
-      return await res.json()
-    } catch {
-      return { ok: false, routing: 'haversine' as const, gemini: false, telegram: false, deployed: 'offline', message: 'FastAPI backend is not running' }
-    }
-  }, { revalidateOnFocus: true, dedupingInterval: 15000 })
+  const { data } = useSWR<BackendHealth>('/api/health', path => apiRequest<BackendHealth>(path, {}, false), {
+    revalidateOnFocus: true,
+    dedupingInterval: 15000,
+    shouldRetryOnError: false,
+  })
   return data
 }

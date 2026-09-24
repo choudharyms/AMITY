@@ -5,6 +5,7 @@
 
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnp
 .pnp.js
 
@@ -55,4 +56,3 @@ supabase/.temp/
 # Archives & Temporary files
 *.zip
 *.ps1
-
