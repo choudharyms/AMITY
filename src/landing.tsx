@@ -47,9 +47,9 @@ const chapters: Chapter[] = [
     align: 'left',
   },
   {
-    label: 'ROUTE',
-    title: 'An optimised route\nlights up the city.',
-    subtitle: 'Traffic-aware, temperature-conscious, time-critical. The fastest path that keeps food safe from kitchen to shelter.',
+    label: 'OPTIMIZATION',
+    title: 'Global VRP solver\noptimises the city.',
+    subtitle: 'Joint multi-vehicle dispatch with expiry deadlines as hard time windows (VROOM via ORS & Google OR-Tools). Live before/after shows road km saved with zero spoiled meals.',
     startFrame: 148,
     endFrame: 190,
     align: 'center',

@@ -13,6 +13,28 @@ export interface DonationIntent {
   source_text?: string
 }
 
+export interface VRPStopDetail {
+  donation_id: string
+  name: string
+  area: string
+  stop_type: string
+  arrival_time: string
+  deadline: string
+  missed: boolean
+  leg_km: number
+  slack_minutes: number
+}
+
+export interface VRPDriverRoute {
+  driver_id: string
+  driver_name: string
+  vehicle: string
+  total_km: number
+  stops: number
+  missed_deadlines: number
+  stop_sequence: string[]
+}
+
 export interface RouteComparison {
   joint_route_km: number
   greedy_baseline_km: number
@@ -22,6 +44,20 @@ export interface RouteComparison {
   greedy_missed_deadlines: number
   stops_count: number
   computed_at: string
+  solver?: string
+  computation_ms?: number
+  joint_stops?: VRPStopDetail[]
+  greedy_stops?: VRPStopDetail[]
+  driver_routes?: VRPDriverRoute[]
+}
+
+export interface RoadRouteGeometry {
+  donation_id: string
+  city_id: string
+  coordinates: [number, number][]
+  distance_km: number
+  duration_minutes: number
+  source: 'ors' | 'osrm'
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
@@ -81,6 +117,10 @@ export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'd
 
 export function fetchRouteComparison(cityId: string): Promise<RouteComparison> {
   return apiRequest(`/api/routes/compare?city_id=${encodeURIComponent(cityId)}`)
+}
+
+export function fetchDonationRoute(donationId: string, cityId: string): Promise<RoadRouteGeometry> {
+  return apiRequest(`/api/donations/${encodeURIComponent(donationId)}/route?city_id=${encodeURIComponent(cityId)}`)
 }
 
 export interface ProfileUpdate {

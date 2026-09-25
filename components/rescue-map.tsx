@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge'
 import { cities } from '@/src/cities'
 import type { Donor, Driver, PilotData, Recipient, Donation } from '@/src/types'
 import { getRoadRoute } from '@/lib/routing'
+import { fetchDonationRoute } from '@/src/api'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 // Immutable tile styles defined at module scope to avoid re-renders & re-parsing
@@ -345,15 +346,20 @@ interface CorridorFeature {
 
       if (donor && recipient) {
         const waypoints: [number, number][] = []
-        if (driver) waypoints.push([driver.longitude, driver.latitude])
+        if (donation.status !== 'picked_up' && driver) waypoints.push([driver.longitude, driver.latitude])
         waypoints.push([donor.longitude, donor.latitude])
         waypoints.push([recipient.longitude, recipient.latitude])
+        const routeKey = `${cityId}:${donation.id}:${waypoints.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join(';')}`
 
-        getRoadRoute(waypoints).then(route => {
-          if (isMounted && route.coordinates?.length > 2) {
+        const routeRequest = fetchDonationRoute(donation.id, cityId)
+          .then(route => ({ coordinates: route.coordinates as [number, number][] }))
+          .catch(() => getRoadRoute(waypoints))
+
+        routeRequest.then(route => {
+          if (isMounted && route.coordinates?.length >= 2) {
             setRoadCorridors(prev => {
-              if (prev[donation.id] === route.coordinates) return prev
-              return { ...prev, [donation.id]: route.coordinates }
+              if (prev[routeKey] === route.coordinates) return prev
+              return { ...prev, [routeKey]: route.coordinates }
             })
           }
         })
@@ -381,13 +387,13 @@ interface CorridorFeature {
       const driver = donation.driver_id ? driverMap.get(donation.driver_id) : null
 
       if (donor && recipient) {
-        const directCoords: [number, number][] = []
-        if (driver) directCoords.push([driver.longitude, driver.latitude])
-        directCoords.push([donor.longitude, donor.latitude])
-        directCoords.push([recipient.longitude, recipient.latitude])
-
-        // Use real road geometry if fetched, otherwise direct path
-        const coords = roadCorridors[donation.id] || directCoords
+        const waypoints: [number, number][] = []
+        if (donation.status !== 'picked_up' && driver) waypoints.push([driver.longitude, driver.latitude])
+        waypoints.push([donor.longitude, donor.latitude])
+        waypoints.push([recipient.longitude, recipient.latitude])
+        const routeKey = `${cityId}:${donation.id}:${waypoints.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join(';')}`
+        const coords = roadCorridors[routeKey]
+        if (!coords || coords.length < 2) return
 
         features.push({
           type: 'Feature',
@@ -409,7 +415,12 @@ interface CorridorFeature {
       type: 'FeatureCollection' as const,
       features,
     }
-  }, [data, showCorridors, roadCorridors])
+  }, [cityId, data, showCorridors, roadCorridors])
+
+  const activeCorridorCount = data?.donations.filter(
+    donation => donation.status === 'matched' || donation.status === 'accepted' || donation.status === 'picked_up'
+  ).length ?? 0
+  const renderedCorridorCount = corridorsGeoJSON?.features.length ?? 0
 
   // Handlers
   const handleClusterClick = useCallback((cluster: MapCluster) => {
@@ -927,7 +938,12 @@ interface CorridorFeature {
         {showCorridors && (
           <span className="corridor-indicator">
             <i className="legend-line corridor" />
-            Active corridors
+            Road routes ({renderedCorridorCount}/{activeCorridorCount})
+          </span>
+        )}
+        {showCorridors && renderedCorridorCount < activeCorridorCount && (
+          <span className="legend-note">
+            {activeCorridorCount - renderedCorridorCount} route(s) loading or unavailable
           </span>
         )}
         <span className="legend-note">

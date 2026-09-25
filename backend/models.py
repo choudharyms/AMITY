@@ -126,6 +126,26 @@ class MatchCandidate(BaseModel):
     is_deliverable: bool
     blocking_reason: Optional[str] = None
 
+class VRPStopDetail(BaseModel):
+    donation_id: str = ""
+    name: str
+    area: str
+    stop_type: str = "pickup"
+    arrival_time: str
+    deadline: str
+    missed: bool = False
+    leg_km: float = 0.0
+    slack_minutes: int = 0
+
+class VRPDriverRoute(BaseModel):
+    driver_id: str
+    driver_name: str
+    vehicle: str = "Bike"
+    total_km: float = 0.0
+    stops: int = 0
+    missed_deadlines: int = 0
+    stop_sequence: List[str] = []
+
 class RouteComparisonResult(BaseModel):
     joint_route_km: float
     greedy_baseline_km: float
@@ -135,6 +155,11 @@ class RouteComparisonResult(BaseModel):
     greedy_missed_deadlines: int
     stops_count: int
     computed_at: str
+    solver: str = "2-opt-heuristic"
+    computation_ms: int = 0
+    joint_stops: List[VRPStopDetail] = []
+    greedy_stops: List[VRPStopDetail] = []
+    driver_routes: List[VRPDriverRoute] = []
 
 class SettingsSchema(BaseModel):
     mode: Literal["pilot", "live"] = "pilot"

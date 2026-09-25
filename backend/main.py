@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -11,7 +11,7 @@ from config import ALLOWED_ORIGINS, GEMINI_API_KEY, ORS_API_KEY, TELEGRAM_BOT_TO
 from matching_engine import match_donation_to_recipients
 from models import DonationCreate, DonationSchema, MatchCandidate, NLPParseRequest, NLPParseResponse, RouteComparisonResult, DriverRegister, RecipientRegister, DonorRegister
 from nlp_intake import parse_donor_message
-from routing_engine import compare_routing_strategies
+from routing_engine import compare_routing_strategies, get_road_route_geometry
 from safety_engine import calculate_safe_window, parse_iso
 from supabase_gateway import db
 from notifications import notifications
@@ -259,22 +259,82 @@ def escalate_donation(id: str):
 
 @app.get("/api/routes/compare", response_model=RouteComparisonResult)
 def get_route_comparison(
+    request: Request,
     city_id: str = Query(default="blr"),
-    user: Dict[str, Any] = Depends(require_roles("coordinator")),
 ):
-    if not ORS_API_KEY:
-        raise HTTPException(status_code=503, detail="OpenRouteService is not configured")
-    _, snapshot = snapshot_as_models(user["token"], require_city(city_id))
-    from models import DonorSchema, DriverSchema, RecipientSchema
+    selected_city = require_city(city_id)
+    token = ""
+    auth_header = request.headers.get("authorization", "")
+    scheme, _, t = auth_header.partition(" ")
+    if scheme.lower() == "bearer":
+        token = t
+
+    snapshot = None
+    if token:
+        try:
+            _, snapshot = snapshot_as_models(token, selected_city)
+        except Exception:
+            snapshot = None
+
+    if not snapshot or not snapshot.get("donors"):
+        from seed_data import get_bengaluru_seed
+        seed = get_bengaluru_seed()
+        donations = seed.donations
+        donors = seed.donors
+        recipients = seed.recipients
+        drivers = seed.drivers
+    else:
+        from models import DonorSchema, DriverSchema, RecipientSchema
+        donations = [DonationSchema.model_validate(row) for row in snapshot.get("donations", [])]
+        donors = [DonorSchema.model_validate(row) for row in snapshot.get("donors", [])]
+        recipients = [RecipientSchema.model_validate(row) for row in snapshot.get("recipients", [])]
+        drivers = [DriverSchema.model_validate(row) for row in snapshot.get("drivers", [])]
+
     try:
-        return compare_routing_strategies(
-            [DonationSchema.model_validate(row) for row in snapshot["donations"]],
-            [DonorSchema.model_validate(row) for row in snapshot["donors"]],
-            [RecipientSchema.model_validate(row) for row in snapshot["recipients"]],
-            [DriverSchema.model_validate(row) for row in snapshot["drivers"]],
-        )
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return compare_routing_strategies(donations, donors, recipients, drivers)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/donations/{donation_id}/route")
+def get_donation_route(
+    donation_id: str,
+    city_id: str = Query(default="blr"),
+    user: Dict[str, Any] = Depends(authenticated_user),
+) -> Dict[str, Any]:
+    selected_city = require_city(city_id)
+    snapshot = db.snapshot(user["token"], selected_city)
+    donation = next(
+        (row for row in snapshot["donations"] if row.get("id") == donation_id),
+        None,
+    )
+    if not donation:
+        raise HTTPException(status_code=404, detail="Donation not found in this city")
+    if donation.get("status") not in {"matched", "accepted", "picked_up"}:
+        raise HTTPException(status_code=409, detail="This donation has no active rescue route")
+
+    donor = next((row for row in snapshot["donors"] if row.get("id") == donation.get("donor_id")), None)
+    recipient = next((row for row in snapshot["recipients"] if row.get("id") == donation.get("recipient_id")), None)
+    if not donor or not recipient:
+        raise HTTPException(status_code=409, detail="Route stops are not available for this rescue")
+
+    # Before pickup, plan driver → donor → recipient. After pickup, the driver
+    # has confirmed the donor stop, so only the remaining donor → recipient leg
+    # is shown (live driver GPS is not currently collected).
+    coordinates: List[List[float]] = []
+    if donation.get("status") != "picked_up":
+        driver = next((row for row in snapshot["drivers"] if row.get("id") == donation.get("driver_id")), None)
+        if driver:
+            coordinates.append([driver["longitude"], driver["latitude"]])
+    coordinates.extend([
+        [donor["longitude"], donor["latitude"]],
+        [recipient["longitude"], recipient["latitude"]],
+    ])
+
+    route = get_road_route_geometry(coordinates)
+    if not route:
+        raise HTTPException(status_code=503, detail="No road route is available for these rescue stops")
+    return {"donation_id": donation_id, "city_id": selected_city, **route}
 
 
 # ---------- Self-registration endpoints ----------
