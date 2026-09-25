@@ -216,6 +216,13 @@ export default function App({
     const handleHash = () => {
       const hash = window.location.hash
       const isPost = hash === '#post-donation' || hash === '#post-food-donation'
+      // Redirect unauthenticated users to login if they try to open the donation form via URL
+      if (isPost && !session) {
+        toast.info('Please sign in or register to post a donation.')
+        window.location.hash = 'login'
+        setIsPostingView(false)
+        return
+      }
       setIsPostingView(isPost)
       updateSection(getSection())
 
@@ -238,6 +245,15 @@ export default function App({
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
   }, [data?.recipients, data?.drivers])
+
+  // Guard: if user lands on #post-donation without a session, redirect to login
+  useEffect(() => {
+    if (!sessionLoading && !session && isPostingView) {
+      toast.info('Please sign in or register to post a donation.')
+      window.location.hash = 'login'
+      setIsPostingView(false)
+    }
+  }, [sessionLoading, session, isPostingView])
 
   useEffect(() => {
     const targetId = getRecipientIdFromUrl()
@@ -299,6 +315,11 @@ export default function App({
   }
 
   function openPostDonation() {
+    if (!session) {
+      toast.info('Please sign in or register to post a donation.')
+      window.location.hash = 'login'
+      return
+    }
     setIsPostingView(true)
     updateSection('donations')
     window.location.hash = 'post-donation'
@@ -539,7 +560,7 @@ export default function App({
                     {source === 'supabase' ? 'Supabase Live' : source === 'offline' ? 'Synthetic demo' : 'Sign in for live data'}
                   </Badge>
                   {/* Post a donation button opens multi-step form */}
-                  {(canPost || !session) && (
+                  {(canPost || isCoordinator || !session) && (
                     <Button size="lg" onClick={openPostDonation}>
                       <Plus data-icon="inline-start" />
                       Post a donation
