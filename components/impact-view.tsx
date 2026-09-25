@@ -450,7 +450,7 @@ export function ImpactView({ data }: { data?: PilotData }) {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={val => `${val} kg`}
+                  tickFormatter={(val: number | string) => `${val} kg`}
                   className="text-xs font-mono fill-muted-foreground"
                 />
                 <ChartTooltip
@@ -550,7 +550,7 @@ export function ImpactView({ data }: { data?: PilotData }) {
                   outerRadius={82}
                   paddingAngle={4}
                   cornerRadius={4}
-                  onMouseEnter={(_, index) => setHoveredCategoryKey(categoryBreakdown[index].key)}
+                  onMouseEnter={(_: unknown, index: number) => setHoveredCategoryKey(categoryBreakdown[index].key)}
                   onMouseLeave={() => setHoveredCategoryKey(null)}
                 >
                   {categoryBreakdown.map(entry => (

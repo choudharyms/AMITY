@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { ArrowRight, Clock3, Download, FileText, MapPin, Printer, QrCode, ShieldAlert, ShieldCheck, Thermometer, UserCheck } from 'lucide-react'
+import { ArrowRight, Clock3, Download, FileText, MapPin, Printer, QrCode, ShieldAlert, ShieldCheck, Thermometer, UserCheck, KeyRound } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { categoryLabels, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
+import { generateHandoverOtp, generateHandoverPayload } from '@/lib/handover'
 
 export function DonationDialog({ donation, data, now, close }: { donation: Donation | null; data?: PilotData; now: number; close: () => void }) {
   const [showSticker, setShowSticker] = useState(false)
@@ -13,6 +15,10 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
   const recipient = data?.recipients.find(r => r.id === donation.recipient_id)
   const driver = data?.drivers.find(d => d.id === donation.driver_id)
   const batchId = `AS-BLR-${donation.id.slice(0, 8).toUpperCase()}`
+
+  const activeStage: 'pickup' | 'delivery' = donation.status === 'picked_up' ? 'delivery' : 'pickup'
+  const activeOtp = generateHandoverOtp(donation.id, activeStage)
+  const qrPayload = generateHandoverPayload(donation, activeStage, batchId)
 
   function handlePrint() {
     window.print()
@@ -101,12 +107,32 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-lg bg-background/80 border text-[11px] flex items-center justify-between">
-                <div>
+              <div className="p-3 rounded-lg bg-background/90 border text-[11px] flex items-center justify-between gap-3">
+                <div className="flex-1">
                   <p className="font-semibold text-foreground">Shelter Destination: {recipient?.name ?? 'Assigning…'}</p>
                   <p className="text-muted-foreground text-[10px]">Volunteer Courier: {driver?.name ?? 'Dispatching…'} ({driver?.vehicle ?? 'Transit'})</p>
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Handover OTP:</span>
+                    <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                      {activeOtp}
+                    </span>
+                    <Badge variant="outline" className="text-[9px] uppercase font-mono py-0">
+                      {activeStage}
+                    </Badge>
+                  </div>
                 </div>
-                <QrCode size={36} className="text-primary shrink-0 ml-2" />
+                <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-primary/20 shadow-xs shrink-0 print:border-black">
+                  <QRCodeSVG
+                    value={qrPayload}
+                    size={72}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                  />
+                  <span className="text-[9px] font-mono font-bold text-zinc-700 mt-1">
+                    SCAN TO VERIFY
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-primary/20">
@@ -137,6 +163,29 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
                 <div>
                   <span><MapPin size={13} />Pickup area</span>
                   <strong>{donor?.area ?? 'Not recorded'}</strong>
+                </div>
+              </div>
+
+              {/* Handover Verification & QR Token Card */}
+              <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <ShieldCheck size={15} className="text-primary" />
+                    Handover Verification ({activeStage === 'pickup' ? 'Stage 1: Pickup' : 'Stage 2: Delivery'})
+                  </div>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Scan with driver device or confirm with 6-digit OTP
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm px-2.5 py-0.5 rounded bg-background border text-primary tracking-wider shadow-2xs">
+                      {activeOtp}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">FSSAI Chain-of-Custody</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center p-1.5 rounded-lg bg-white border shadow-2xs shrink-0">
+                  <QRCodeSVG value={qrPayload} size={64} level="M" bgColor="#ffffff" fgColor="#000000" />
+                  <span className="text-[8px] font-mono font-bold text-zinc-700 mt-0.5">QR CODE</span>
                 </div>
               </div>
 

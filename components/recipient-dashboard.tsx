@@ -4,12 +4,13 @@
  */
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCheck, Clock, HeartHandshake, MapPin, PackageCheck, ShieldCheck, Utensils } from 'lucide-react'
+import { CheckCheck, Clock, HeartHandshake, MapPin, PackageCheck, ShieldCheck, Utensils, QrCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { categoryLabels, number, parseAccepts, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
 import { apiRequest } from '@/src/api'
 import type { AccountProfile } from '@/src/use-profile'
+import { HandoverDialog } from '@/components/handover-dialog'
 
 interface Props {
   data?: PilotData
@@ -22,6 +23,7 @@ interface Props {
 
 export function RecipientDashboard({ data, now, profile, cityId, onSelect, refresh }: Props) {
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [handoverDonation, setHandoverDonation] = useState<Donation | null>(null)
 
   // Find the recipient org linked to this user
   const myRecipient = data?.recipients[0] // demo fallback
@@ -142,8 +144,9 @@ export function RecipientDashboard({ data, now, profile, cityId, onSelect, refre
                     {remainingLabel(d.safe_until, now)}
                   </Badge>
                   {canDeliver && (
-                    <Button size="sm" onClick={() => confirmDelivery(d.id)} disabled={confirming === d.id}>
-                      {confirming === d.id ? 'Confirming…' : 'Confirm receipt'}
+                    <Button size="sm" onClick={() => setHandoverDonation(d)} className="gap-1.5">
+                      <QrCode size={13} />
+                      Verify Delivery
                     </Button>
                   )}
                 </div>
@@ -160,6 +163,20 @@ export function RecipientDashboard({ data, now, profile, cityId, onSelect, refre
               : 'Your organisation is pending coordinator approval. You will receive food once approved.'}
           </p>
         </div>
+      )}
+
+      {handoverDonation && (
+        <HandoverDialog
+          donation={handoverDonation}
+          stage="delivery"
+          cityId={cityId}
+          data={data}
+          onClose={() => setHandoverDonation(null)}
+          onSuccess={() => {
+            setHandoverDonation(null)
+            refresh()
+          }}
+        />
       )}
     </section>
   )

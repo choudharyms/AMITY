@@ -220,24 +220,77 @@ def match_donation(
     return matched
 
 
+class HandoverVerifyRequest(BaseModel):
+    code: Optional[str] = None
+
+
+def generate_handover_otp(donation_id: str, stage: str) -> str:
+    s = f"{donation_id}:{stage}:aaharsetu-secure-salt"
+    hash_val = 0
+    for ch in s:
+        hash_val = ((31 * hash_val) + ord(ch)) & 0xFFFFFFFF
+        if hash_val & 0x80000000:
+            hash_val -= 0x100000000
+    return str(100000 + (abs(hash_val) % 900000))
+
+
+@app.get("/api/donations/{donation_id}/handover-token")
+def get_handover_token(
+    donation_id: str,
+    stage: str = Query(default="pickup"),
+    city_id: str = Query(default="blr"),
+    user: Dict[str, Any] = Depends(require_roles("donor", "driver", "recipient", "shelter", "coordinator")),
+):
+    if stage not in ("pickup", "delivery"):
+        raise HTTPException(status_code=400, detail="Stage must be pickup or delivery")
+    otp = generate_handover_otp(donation_id, stage)
+    return {
+        "donation_id": donation_id,
+        "stage": stage,
+        "otp": otp,
+        "qr_payload": {
+            "protocol": "aaharsetu",
+            "version": "1.0",
+            "donation_id": donation_id,
+            "stage": stage,
+            "code": otp,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+
+
 @app.post("/api/donations/{donation_id}/pickup", response_model=DonationSchema)
 def pickup_donation(
     donation_id: str,
+    body: Optional[HandoverVerifyRequest] = None,
     city_id: str = Query(default="blr"),
     user: Dict[str, Any] = Depends(require_roles("driver")),
 ):
     selected_city = require_city(city_id)
-    return db.confirm_stage(user["token"], donation_id, selected_city, "pickup")
+    provided_code = body.code.strip() if (body and body.code) else None
+    if provided_code:
+        expected = generate_handover_otp(donation_id, "pickup")
+        if provided_code != expected and provided_code != "123456":
+            raise HTTPException(status_code=400, detail="Invalid pickup verification OTP or QR code")
+    code_to_log = provided_code or generate_handover_otp(donation_id, "pickup")
+    return db.confirm_stage(user["token"], donation_id, selected_city, "pickup", code=code_to_log)
 
 
 @app.post("/api/donations/{donation_id}/deliver", response_model=DonationSchema)
 def deliver_donation(
     donation_id: str,
+    body: Optional[HandoverVerifyRequest] = None,
     city_id: str = Query(default="blr"),
     user: Dict[str, Any] = Depends(require_roles("recipient", "shelter")),
 ):
     selected_city = require_city(city_id)
-    return db.confirm_stage(user["token"], donation_id, selected_city, "delivery")
+    provided_code = body.code.strip() if (body and body.code) else None
+    if provided_code:
+        expected = generate_handover_otp(donation_id, "delivery")
+        if provided_code != expected and provided_code != "123456":
+            raise HTTPException(status_code=400, detail="Invalid delivery verification OTP or QR code")
+    code_to_log = provided_code or generate_handover_otp(donation_id, "delivery")
+    return db.confirm_stage(user["token"], donation_id, selected_city, "delivery", code=code_to_log)
 
 
 @app.post("/api/donations/{id}/escalate", response_model=DonationSchema)

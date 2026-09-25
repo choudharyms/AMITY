@@ -91,11 +91,12 @@ export async function createDonation(payload: DonationIntent): Promise<{ id: str
   return posted
 }
 
-export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate', cityId?: string): Promise<void> {
+export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate', cityId?: string, code?: string): Promise<void> {
   const targetCity = cityId || 'blr'
   try {
+    const payload = code ? { code } : {}
     await apiRequest(`/api/donations/${encodeURIComponent(id)}/${action}?city_id=${encodeURIComponent(targetCity)}`, {
-      method: 'POST', body: '{}',
+      method: 'POST', body: JSON.stringify(payload),
     })
     const msg = action === 'match'
       ? 'Rescue matched.'

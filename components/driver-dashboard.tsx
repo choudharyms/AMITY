@@ -3,13 +3,14 @@
  * Shows assigned pickups, their availability status, and quick actions.
  */
 import { useState } from 'react'
-import { Bike, CheckCheck, Clock, MapPin, Navigation, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Bike, CheckCheck, Clock, MapPin, Navigation, ShieldCheck, ToggleLeft, ToggleRight, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { number, remainingLabel, statusLabels, type Donation, type Driver, type PilotData } from '@/src/types'
 import { apiRequest } from '@/src/api'
 import type { AccountProfile } from '@/src/use-profile'
+import { HandoverDialog } from '@/components/handover-dialog'
 
 interface Props {
   data?: PilotData
@@ -22,6 +23,7 @@ interface Props {
 
 export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh }: Props) {
   const [toggling, setToggling] = useState(false)
+  const [handoverDonation, setHandoverDonation] = useState<Donation | null>(null)
 
   // Find the driver profile linked to this user in the pilot data
   // In production, the driver profile would be linked via user_id
@@ -138,8 +140,9 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
                     {remainingLabel(d.safe_until, now)}
                   </Badge>
                   {canPickup && (
-                    <Button size="sm" onClick={() => confirmPickup(d.id)}>
-                      Confirm pickup
+                    <Button size="sm" onClick={() => setHandoverDonation(d)} className="gap-1.5">
+                      <QrCode size={13} />
+                      Verify Pickup
                     </Button>
                   )}
                 </div>
@@ -156,6 +159,20 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
               : 'You are currently marked unavailable. Toggle your availability above to receive assignments.'}
           </p>
         </div>
+      )}
+
+      {handoverDonation && (
+        <HandoverDialog
+          donation={handoverDonation}
+          stage="pickup"
+          cityId={cityId}
+          data={data}
+          onClose={() => setHandoverDonation(null)}
+          onSuccess={() => {
+            setHandoverDonation(null)
+            refresh()
+          }}
+        />
       )}
     </section>
   )

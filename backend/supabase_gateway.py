@@ -144,7 +144,7 @@ class SupabaseGateway:
             raise HTTPException(status_code=409, detail="Donation could not be assigned")
         return rows[0]
 
-    def confirm_stage(self, access_token: str, donation_id: str, city_id: str, stage: str) -> Dict[str, Any]:
+    def confirm_stage(self, access_token: str, donation_id: str, city_id: str, stage: str, code: Optional[str] = None) -> Dict[str, Any]:
         rows = self._request(
             "POST", "rpc/confirm_donation_stage", access_token,
             headers={"Content-Type": "application/json"},
@@ -152,7 +152,24 @@ class SupabaseGateway:
         )
         if not rows:
             raise HTTPException(status_code=409, detail="Handover could not be confirmed")
-        return rows[0]
+        donation = rows[0]
+        if self.configured and code:
+            try:
+                user_info = self.user(access_token)
+                user_id = user_info.get("id") if isinstance(user_info, dict) else None
+                handover_row = {
+                    "id": f"h-{uuid.uuid4().hex[:8]}",
+                    "donation_id": donation_id,
+                    "stage": stage,
+                    "code": code,
+                    "confirmed_by": user_id,
+                    "confirmed_at": datetime.now(timezone.utc).isoformat(),
+                    "city_id": city_id,
+                }
+                self._request("POST", "handovers", access_token, json=handover_row)
+            except Exception:
+                pass
+        return donation
 
     def escalate_donation(self, donation_id: str, access_token: Optional[str] = None) -> Optional[DonationSchema]:
         d = self.donations.get(donation_id)
