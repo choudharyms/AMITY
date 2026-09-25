@@ -118,17 +118,31 @@ export function usePilotData(cityId: string) {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return
 
-    const channelId = `realtime-${cityId}-${Math.random().toString(36).slice(2, 8)}`
-    const channel = supabase
-      .channel(channelId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    try {
+      const channelId = `realtime-${cityId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      channel = supabase
+        .channel(channelId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.warn(`[Supabase Realtime] Channel error for ${channelId}`)
+          }
+        })
+    } catch (err) {
+      console.warn('[Supabase Realtime] Safe fallback - unable to attach realtime listener:', err)
+    }
 
     return () => {
-      if (supabase) {
-        supabase.removeChannel(channel)
+      if (supabase && channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch (err) {
+          console.warn('[Supabase Realtime] Error during channel removal:', err)
+        }
       }
     }
   }, [cityId, mutate])
