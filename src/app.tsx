@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
-  MapPin, Menu, Monitor, Plus, ShieldCheck
+  MapPin, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Plus, ShieldCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
@@ -113,6 +113,35 @@ export default function App({
   const [desktopPerm, setDesktopPerm] = useState(() => typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'granted')
   const [now, setNow] = useState(Date.now())
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return localStorage.getItem('aaharsetu-sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('aaharsetu-sidebar-collapsed', String(next))
+      } catch {}
+      return next
+    })
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        toggleSidebar()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const openLogin = () => { window.location.hash = 'login' }
 
@@ -259,6 +288,8 @@ export default function App({
 
       <AppSidebar
         section={section} setSection={setSection}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
         mobileOpen={mobile} close={() => setMobile(false)}
         session={session} profile={profile ?? undefined}
         signIn={openLogin} signOut={signOut}
@@ -271,8 +302,18 @@ export default function App({
       <div className="app-main">
         <header className="topbar">
           <div className="breadcrumb">
-            <Button variant="ghost" size="icon" className="mobile-menu" aria-label="Open navigation" onClick={() => setMobile(true)}>
-              <Menu />
+            <Button variant="ghost" size="icon" className="mobile-menu md:hidden" aria-label="Open navigation" onClick={() => setMobile(true)}>
+              <Menu size={18} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={sidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+              title={sidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+              onClick={toggleSidebar}
+              className="hidden md:inline-flex text-muted-foreground hover:text-foreground mr-1"
+            >
+              {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </Button>
             <button
               type="button"
