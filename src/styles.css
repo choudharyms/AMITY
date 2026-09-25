@@ -1389,7 +1389,7 @@
 .marker-hover-label {
   position: absolute;
   bottom: calc(100% + 4px);
-  background: hsl(var(--card) / 0.95);
+  background: var(--card);
   backdrop-filter: blur(6px);
   border: 1px solid var(--border);
   padding: 3px 7px;
@@ -1411,9 +1411,9 @@
   transform: translateY(0);
 }
 
-/* Glassmorphic Map Detail Card / Popup */
+/* Opaque map detail popup keeps its text readable over busy map tiles. */
 .custom-map-popup .maplibregl-popup-content {
-  background: hsl(var(--card) / 0.96) !important;
+  background: var(--card) !important;
   backdrop-filter: blur(12px) !important;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
@@ -1437,7 +1437,7 @@
 }
 
 .custom-map-popup .maplibregl-popup-tip {
-  border-top-color: hsl(var(--card) / 0.96) !important;
+  border-top-color: var(--card) !important;
 }
 
 .map-detail-card {
@@ -1550,9 +1550,7 @@
   bottom: 16px;
   left: 16px;
   z-index: 25;
-  background: hsl(var(--card) / 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(16, 185, 129, 0.2);
@@ -1649,7 +1647,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid hsl(var(--card));
+  border: 2px solid var(--card);
   box-shadow: 0 0 0 1px var(--border);
 }
 

@@ -216,8 +216,8 @@ export default function App({
     const handleHash = () => {
       const hash = window.location.hash
       const isPost = hash === '#post-donation' || hash === '#post-food-donation'
-      // Redirect unauthenticated users to login if they try to open the donation form via URL
-      if (isPost && !session) {
+      // Wait for a stored Supabase session to restore before treating the user as signed out.
+      if (isPost && !session && !sessionLoading) {
         toast.info('Please sign in or register to post a donation.')
         window.location.hash = 'login'
         setIsPostingView(false)
@@ -244,7 +244,7 @@ export default function App({
     }
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
-  }, [data?.recipients, data?.drivers])
+  }, [data?.recipients, data?.drivers, session, sessionLoading])
 
   // Guard: if user lands on #post-donation without a session, redirect to login
   useEffect(() => {
@@ -315,6 +315,13 @@ export default function App({
   }
 
   function openPostDonation() {
+    // Supabase can still be restoring an existing browser session when this action is triggered.
+    if (!session && sessionLoading && hasStoredSession) {
+      setIsPostingView(true)
+      updateSection('donations')
+      window.location.hash = 'post-donation'
+      return
+    }
     if (!session) {
       toast.info('Please sign in or register to post a donation.')
       window.location.hash = 'login'
