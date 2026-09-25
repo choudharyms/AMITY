@@ -150,12 +150,22 @@ export function RegisterPage({
       })
 
       if (authError) {
-        if (authError.status === 429) {
+        const code = authError.code
+        const msg = authError.message?.toLowerCase() || ''
+        if (authError.status === 429 || code === 'over_email_send_rate_limit') {
           setError('Too many registration requests. Please wait a minute before trying again.')
-        } else if (authError.message.includes('already registered')) {
+        } else if (
+          code === 'user_already_exists' ||
+          code === 'email_exists' ||
+          authError.status === 422 ||
+          msg.includes('already registered') ||
+          msg.includes('already exists')
+        ) {
           setError('An account with this email address already exists. Please sign in instead.')
+        } else if (code === 'weak_password') {
+          setError('Password should be at least 8 characters long.')
         } else {
-          setError(authError.message)
+          setError(authError.message || 'Could not complete registration. Please check your details and try again.')
         }
         return
       }
@@ -339,7 +349,29 @@ export function RegisterPage({
               {error && (
                 <div className="auth-alert-box auth-alert-error">
                   <Info size={18} className="shrink-0 mt-0.5" />
-                  <span>{error}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                    <span>{error}</span>
+                    {error.includes('already exists') && (
+                      <button
+                        type="button"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          color: 'var(--primary, #059669)',
+                          fontWeight: 600,
+                          fontSize: '0.8125rem',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          marginTop: '0.25rem',
+                        }}
+                        onClick={onNavigateToLogin}
+                      >
+                        Click here to Sign In now &rarr;
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
