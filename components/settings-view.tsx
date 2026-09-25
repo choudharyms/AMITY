@@ -1,20 +1,30 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
   Bell,
+  Bike,
+  Building2,
   Check,
+  CheckCircle2,
   CircleDashed,
   Database,
   ExternalLink,
   Globe,
+  HeartHandshake,
   LockKeyhole,
+  Mail,
   Map,
+  MapPin,
   MessageCircle,
   Monitor,
+  Phone,
   RefreshCw,
   Route,
   Send,
+  Shield,
   ShieldCheck,
   Sparkles,
+  Store,
+  User,
   Volume2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -348,131 +358,233 @@ export function SettingsView({
 
   return (
     <div className="settings-grid">
-      <section className="panel">
+      <div className="flex flex-col gap-6">
+        <section className="panel account-panel">
         <div className="panel-header">
-          <h2>Account and network</h2>
-          <Badge variant="outline">{source === 'supabase' ? 'Live account' : 'Local demo'}</Badge>
-        </div>
-        <div className="integration-list">
-          <div className="integration-row">
-            <span className="integration-icon">
-              <LockKeyhole size={19} />
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <User size={16} />
             </span>
-            <div>
-              <h3>Signed-in account</h3>
-              <p>{accountEmail ?? 'Sign in to view your account'}</p>
-            </div>
-            <Badge variant="outline">
-              {profile?.role ?? (profileError ? 'Profile unavailable' : 'Checking…')}
-            </Badge>
+            <h2 className="font-display font-bold">Account & Verified Identity</h2>
           </div>
-          {profile?.requested_role && profile.requested_role !== profile.role && (
-            <div className="integration-row">
-              <span className="integration-icon">
-                <CircleDashed size={19} />
+          <Badge variant={source === 'supabase' ? 'secondary' : 'outline'} className="text-[11px] font-medium">
+            {source === 'supabase' ? (
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Account
               </span>
-              <div>
-                <h3>Role request</h3>
-                <p>{profile.requested_role} access needs organization verification</p>
-              </div>
-              <Badge variant="outline">Pending</Badge>
-            </div>
-          )}
-          {profile?.organization && (
-            <div className="integration-row">
-              <span className="integration-icon">
-                <ShieldCheck size={19} />
-              </span>
-              <div>
-                <h3>Organization</h3>
-                <p>{profile.organization}</p>
-              </div>
-              <Badge variant="outline">{profile.display_name}</Badge>
-            </div>
-          )}
-          <div className="integration-row">
-            <span className="integration-icon">
-              <Globe size={19} />
-            </span>
-            <div>
-              <h3>Active city</h3>
-              <p>
-                {profile
-                  ? 'Stored in your account and used to scope live records.'
-                  : 'Select a city to view its network.'}
-              </p>
-            </div>
-            <label className="sr-only" htmlFor="active-city">
-              Active city
-            </label>
-            <select
-              id="active-city"
-              value={cityId}
-              disabled={savingCity}
-              onChange={(event) => void selectCity(event.target.value)}
-              className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
-            >
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}, {city.state}
-                </option>
-              ))}
-            </select>
-          </div>
+            ) : (
+              'Local Pilot Mode'
+            )}
+          </Badge>
         </div>
 
-        {profile && (
-          <form className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={saveProfile}>
-            <label className="grid gap-1 text-xs font-medium">
-              Display name
-              <Input
-                value={profileForm.display_name}
-                maxLength={100}
-                onChange={(e) => setProfileForm({ ...profileForm, display_name: e.target.value })}
-                required
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium">
-              Organization
-              <Input
-                value={profileForm.organization}
-                maxLength={160}
-                onChange={(e) => setProfileForm({ ...profileForm, organization: e.target.value })}
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium">
-              Phone
-              <Input
-                value={profileForm.phone}
-                maxLength={40}
-                onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                type="tel"
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium">
-              FSSAI license
-              <Input
-                value={profileForm.fssai_license}
-                maxLength={40}
-                onChange={(e) => setProfileForm({ ...profileForm, fssai_license: e.target.value })}
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium sm:col-span-2">
-              Area / service address
-              <Input
-                value={profileForm.area}
-                maxLength={160}
-                onChange={(e) => setProfileForm({ ...profileForm, area: e.target.value })}
-              />
-            </label>
-            <div className="sm:col-span-2">
-              <Button type="submit" disabled={savingProfile}>
-                {savingProfile ? 'Saving…' : 'Save account details'}
-              </Button>
-            </div>
-          </form>
-        )}
+        <div className="p-5 space-y-5">
+          {/* Identity Hero Card */}
+          <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-emerald-500/5 p-5 shadow-sm relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold text-lg flex items-center justify-center shadow-md font-display tracking-tight">
+                    {profile?.display_name?.trim()
+                      ? profile.display_name.trim().split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                      : accountEmail ? accountEmail.slice(0, 2).toUpperCase() : 'AS'}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-card ring-1 ring-emerald-400/40" title="Active Verified Session" />
+                </div>
 
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-foreground font-display">
+                      {profile?.display_name || (accountEmail ? accountEmail.split('@')[0] : 'Rescue Partner')}
+                    </h3>
+                    <Badge variant="secondary" className="text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 capitalize">
+                      {profile?.role === 'coordinator' && <ShieldCheck size={12} className="mr-1 inline text-emerald-500" />}
+                      {profile?.role === 'donor' && <Store size={12} className="mr-1 inline text-amber-500" />}
+                      {profile?.role === 'driver' && <Bike size={12} className="mr-1 inline text-blue-500" />}
+                      {(profile?.role === 'recipient' || profile?.role === 'shelter') && <HeartHandshake size={12} className="mr-1 inline text-purple-500" />}
+                      {profile?.role ? `${profile.role} partner` : 'Member'}
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                    {profile?.organization ? (
+                      <span className="flex items-center gap-1 font-medium text-foreground/80">
+                        <Building2 size={12} className="text-emerald-500" />
+                        {profile.organization}
+                      </span>
+                    ) : (
+                      'Independent Food Rescue Participant'
+                    )}
+                    <span>·</span>
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                      <Mail size={11} className="text-muted-foreground" />
+                      {accountEmail ?? 'Not authenticated'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {profile?.fssai_license && (
+                <div className="self-start sm:self-auto bg-muted/50 border border-border/60 rounded-xl px-3 py-2 text-right">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">FSSAI Status</span>
+                  <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 justify-end">
+                    <CheckCircle2 size={12} /> {profile.fssai_license}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {profile?.requested_role && profile.requested_role !== profile.role && (
+              <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <CircleDashed size={14} className="animate-spin" /> Role elevation to <strong>{profile.requested_role}</strong> pending coordinator verification
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-background">In review</Badge>
+              </div>
+            )}
+          </div>
+
+          {/* Operational City Territory Switcher */}
+          <div className="p-4 rounded-xl border border-border/80 bg-card/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Globe size={18} />
+              </span>
+              <div>
+                <strong className="text-xs text-foreground block font-semibold">Active Operational Territory</strong>
+                <span className="text-[11px] text-muted-foreground">
+                  Scopes dispatch routes, shelter capacity, and live inventory to this municipal zone.
+                </span>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2">
+              <select
+                id="active-city"
+                value={cityId}
+                disabled={savingCity}
+                onChange={(event) => void selectCity(event.target.value)}
+                className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground cursor-pointer transition-colors focus:border-emerald-500 outline-none"
+              >
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name} Network ({city.state})
+                  </option>
+                ))}
+              </select>
+              {savingCity && <CircleDashed size={14} className="animate-spin text-emerald-500" />}
+            </div>
+          </div>
+
+          {/* Account Profile Form */}
+          {profile ? (
+            <form className="space-y-4 pt-1" onSubmit={saveProfile}>
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 pb-1 border-b border-border/50">
+                <User size={13} className="text-emerald-500" />
+                Profile & Operational Credentials
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="account-display-name" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <User size={13} className="text-muted-foreground" /> Display Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    id="account-display-name"
+                    value={profileForm.display_name}
+                    maxLength={100}
+                    onChange={(e) => setProfileForm({ ...profileForm, display_name: e.target.value })}
+                    required
+                    placeholder="Your legal or operational name"
+                    className="h-10 text-sm bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="account-organization" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Building2 size={13} className="text-muted-foreground" /> Organization / Entity Name
+                  </label>
+                  <Input
+                    id="account-organization"
+                    value={profileForm.organization}
+                    maxLength={160}
+                    onChange={(e) => setProfileForm({ ...profileForm, organization: e.target.value })}
+                    placeholder="e.g. Hotel Ashok, Akshaya Patra, Robin Hood Army"
+                    className="h-10 text-sm bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="account-phone" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Phone size={13} className="text-muted-foreground" /> Phone Number (Dispatch Contact)
+                  </label>
+                  <Input
+                    id="account-phone"
+                    value={profileForm.phone}
+                    maxLength={40}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    className="h-10 text-sm bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="account-fssai" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-muted-foreground" /> FSSAI Registration / License
+                  </label>
+                  <Input
+                    id="account-fssai"
+                    value={profileForm.fssai_license}
+                    maxLength={40}
+                    onChange={(e) => setProfileForm({ ...profileForm, fssai_license: e.target.value })}
+                    placeholder="14-digit FSSAI number (e.g. 11223344556677)"
+                    className="h-10 text-sm bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label htmlFor="account-area" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <MapPin size={13} className="text-muted-foreground" /> Operating Area / Landmark Address
+                  </label>
+                  <Input
+                    id="account-area"
+                    value={profileForm.area}
+                    maxLength={160}
+                    onChange={(e) => setProfileForm({ ...profileForm, area: e.target.value })}
+                    placeholder="e.g. Indiranagar 100ft Road / Koramangala 4th Block"
+                    className="h-10 text-sm bg-background border-border"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <Button type="submit" disabled={savingProfile} className="h-10 px-5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {savingProfile ? (
+                    <>
+                      <CircleDashed size={14} className="mr-1.5 animate-spin" /> Saving changes…
+                    </>
+                  ) : (
+                    'Save account details'
+                  )}
+                </Button>
+
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <LockKeyhole size={12} className="text-emerald-500 shrink-0" />
+                  <span>Encrypted & protected by Supabase Row-Level Security</span>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <div className="p-4 rounded-xl border border-dashed border-border text-center">
+              <p className="text-xs text-muted-foreground">Sign in to edit and manage your network profile credentials.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
         {/* ==================== TELEGRAM BOT DISPATCH CONTROL ==================== */}
         <div className="panel-header mt-6">
           <div className="flex items-center gap-2">
@@ -703,6 +815,7 @@ export function SettingsView({
           ))}
         </div>
       </section>
+    </div>
 
       <div className="flex flex-col gap-5">
         <section className="panel settings-note">

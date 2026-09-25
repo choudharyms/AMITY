@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sprout,
+  UserCog,
   Users,
   X,
   Activity,
@@ -79,10 +80,10 @@ export const sectionNames: Record<Section, string> = {
   recipients: 'Recipients',
   drivers: 'Volunteer drivers',
   impact: 'Impact & reports',
-  settings: 'Workspace settings',
+  settings: 'Account & settings',
 }
 
-const roleLabel: Record<AccountProfile['role'], string> = {
+export const roleLabel: Record<AccountProfile['role'], string> = {
   coordinator: 'Network Coordinator',
   donor: 'Food Donor',
   driver: 'Volunteer Driver',
@@ -425,10 +426,10 @@ export function AppSidebar({
           </nav>
         )}
 
-        {/* Insights Navigation */}
+        {/* Insights & Settings Navigation */}
         {!isCollapsed ? (
           <>
-            <div className="nav-section-label mt-6">INSIGHTS</div>
+            <div className="nav-section-label mt-6">INSIGHTS & ACCOUNT</div>
             <nav aria-label="Workspace insights" className="sidebar-nav">
               <button
                 onClick={() => navigate('impact')}
@@ -444,8 +445,8 @@ export function AppSidebar({
                 className={cn('nav-item group', section === 'settings' && 'active')}
                 aria-current={section === 'settings' ? 'page' : undefined}
               >
-                <Settings2 size={18} strokeWidth={1.75} className="nav-item-icon" />
-                <span className="nav-item-label">Workspace settings</span>
+                <UserCog size={18} strokeWidth={1.75} className="nav-item-icon" />
+                <span className="nav-item-label">Account & settings</span>
                 {section === 'settings' && <span className="nav-active-pill" />}
               </button>
             </nav>
@@ -471,12 +472,12 @@ export function AppSidebar({
                   onClick={() => navigate('settings')}
                   className={cn('nav-item-collapsed', section === 'settings' && 'active')}
                   aria-current={section === 'settings' ? 'page' : undefined}
-                  aria-label="Workspace settings"
+                  aria-label="Account & settings"
                 >
-                  <Settings2 size={19} strokeWidth={1.8} />
+                  <UserCog size={19} strokeWidth={1.8} />
                   {section === 'settings' && <span className="nav-active-indicator-collapsed" />}
                 </button>
-                <div className="sidebar-tooltip">Workspace settings</div>
+                <div className="sidebar-tooltip">Account & settings</div>
               </div>
             </nav>
           </>
@@ -547,21 +548,44 @@ export function AppSidebar({
         {/* Profile Footer */}
         {!isCollapsed ? (
           <div className="sidebar-profile">
-            <span className="profile-avatar">
-              {session && initials ? (
-                <span className="font-bold text-xs">{initials}</span>
-              ) : session ? (
-                <Users size={17} />
-              ) : (
-                <ShieldCheck size={18} />
+            <div className="relative">
+              <span className="profile-avatar">
+                {session && initials ? (
+                  <span className="font-bold text-xs">{initials}</span>
+                ) : session ? (
+                  <Users size={17} />
+                ) : (
+                  <ShieldCheck size={18} />
+                )}
+              </span>
+              {session && (
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background"
+                  title="Connected"
+                />
               )}
-            </span>
-            <button onClick={signIn} className="profile-text text-left">
-              <strong>{session ? (profile?.display_name || session.user.email?.split('@')[0] || 'Rescue partner') : 'Pilot visitor'}</strong>
-              <small>{session ? (profile ? roleLabel[profile.role] : 'Loading profile…') : 'Sign in to participate'}</small>
+            </div>
+            <button
+              onClick={session ? () => navigate('settings') : signIn}
+              className="profile-text text-left group cursor-pointer"
+              title={session ? 'Manage account & credentials' : 'Sign in to participate'}
+            >
+              <strong className="group-hover:text-primary transition-colors">
+                {session ? (profile?.display_name || session.user.email?.split('@')[0] || 'Rescue partner') : 'Pilot visitor'}
+              </strong>
+              <small className="flex items-center gap-1">
+                {session ? (profile ? roleLabel[profile.role] : 'Loading profile…') : 'Sign in to participate'}
+              </small>
             </button>
             {session && (
-              <Button variant="ghost" size="icon-xs" aria-label="Sign out" onClick={signOut} title="Sign out" className="shrink-0 text-muted-foreground hover:text-destructive">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Sign out"
+                onClick={signOut}
+                title="Sign out"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+              >
                 <LogOut size={15} />
               </Button>
             )}
@@ -570,7 +594,7 @@ export function AppSidebar({
           <div className="sidebar-profile-collapsed">
             <div className="sidebar-tooltip-wrapper">
               <button
-                onClick={signIn}
+                onClick={session ? () => navigate('settings') : signIn}
                 className="profile-avatar-btn-collapsed"
                 aria-label={session ? (profile?.display_name || 'My profile') : 'Sign in'}
               >
