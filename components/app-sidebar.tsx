@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowUpRight, Bike, Boxes, Check, ChevronDown, CircleHelp, Globe, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sparkles, Sprout, Users, X } from 'lucide-react'
+import { ArrowUpRight, Bike, Boxes, Check, ChevronDown, CircleHelp, Globe, HeartHandshake, LayoutDashboard, Leaf, LogOut, MapPin, Route, Settings2, ShieldCheck, Sparkles, Sprout, UserCog, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,10 +56,10 @@ export const sectionNames: Record<Section, string> = {
   recipients: 'Recipients',
   drivers: 'Volunteer drivers',
   impact: 'Impact & reports',
-  settings: 'Workspace settings',
+  settings: 'Account & settings',
 }
 
-const roleLabel: Record<AccountProfile['role'], string> = {
+export const roleLabel: Record<AccountProfile['role'], string> = {
   coordinator: 'Network Coordinator',
   donor: 'Food Donor',
   driver: 'Volunteer Driver',
@@ -245,8 +245,8 @@ export function AppSidebar({
             className={cn('nav-item', section === 'settings' && 'active')}
             aria-current={section === 'settings' ? 'page' : undefined}
           >
-            <Settings2 size={18} strokeWidth={1.7} />
-            <span>Workspace settings</span>
+            <UserCog size={18} strokeWidth={1.7} />
+            <span>Account & settings</span>
           </button>
         </nav>
 
@@ -273,15 +273,18 @@ export function AppSidebar({
         </button>
 
         <div className="sidebar-profile">
-          <span className="profile-avatar">
-            {session && initials ? <span style={{ fontSize: 13, fontWeight: 700 }}>{initials}</span> : session ? <Users size={18} /> : <ShieldCheck size={19} />}
-          </span>
-          <button onClick={signIn} className="profile-text text-left">
-            <strong>{session ? (profile?.display_name || session.user.email?.split('@')[0] || 'Rescue partner') : 'Pilot visitor'}</strong>
-            <small>{session ? (profile ? roleLabel[profile.role] : 'Loading profile…') : 'Sign in to participate'}</small>
+          <div className="relative">
+            <span className="profile-avatar">
+              {session && initials ? <span style={{ fontSize: 13, fontWeight: 700 }}>{initials}</span> : session ? <Users size={18} /> : <ShieldCheck size={19} />}
+            </span>
+            {session && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background" title="Connected" />}
+          </div>
+          <button onClick={session ? () => navigate('settings') : signIn} className="profile-text text-left group cursor-pointer" title={session ? 'Manage account & credentials' : 'Sign in to participate'}>
+            <strong className="group-hover:text-primary transition-colors">{session ? (profile?.display_name || session.user.email?.split('@')[0] || 'Rescue partner') : 'Pilot visitor'}</strong>
+            <small className="flex items-center gap-1">{session ? (profile ? roleLabel[profile.role] : 'Loading profile…') : 'Sign in to participate'}</small>
           </button>
           {session && (
-            <Button variant="ghost" size="icon-sm" aria-label="Sign out" onClick={signOut}>
+            <Button variant="ghost" size="icon-sm" aria-label="Sign out" onClick={signOut} className="hover:text-destructive">
               <LogOut size={16} />
             </Button>
           )}

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
-  MapPin, Menu, Monitor, Plus, ShieldCheck
+  MapPin, Menu, Monitor, Plus, ShieldCheck, User
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
 import { supabase } from '@/lib/supabase'
-import { AppSidebar, sectionNames } from '@/components/app-sidebar'
+import { AppSidebar, sectionNames, roleLabel } from '@/components/app-sidebar'
 import { ActivityFeed } from '@/components/activity-feed'
 import { DonationDialog } from '@/components/donation-dialog'
 import { DonationForm } from '@/components/donation-form'
@@ -21,6 +21,7 @@ import { RecipientView, DriverView } from '@/components/network-views'
 import { RecipientDialog } from '@/components/recipient-dialog'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
+import { OverviewInsights } from '@/components/overview-insights'
 import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
 import { PostDonationView } from '@/components/post-donation-view'
@@ -221,6 +222,7 @@ export default function App({
             <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
             <ActivityFeed data={data} navigate={setSection} />
           </div>
+          <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
           {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
           <DonationsTable data={data} now={now} openDonation={setSelected} viewAll={() => setSection('donations')} />
         </div>
@@ -243,6 +245,7 @@ export default function App({
           <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
           <ActivityFeed data={data} navigate={setSection} />
         </div>
+        <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
         {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
         <DonationsTable data={data} now={now} openDonation={setSelected} viewAll={() => setSection('donations')} />
       </div>
@@ -316,8 +319,28 @@ export default function App({
               <Bell />
               {!!urgent?.length && <span className="notif-dot" />}
             </Button>
-            <button className="topbar-avatar" onClick={session ? () => setSection('settings') : openLogin} aria-label={session ? 'Account settings' : 'Sign in'}>
-              {session && initials ? initials : <Leaf size={17} />}
+            <button
+              className="topbar-account-button group"
+              onClick={session ? () => setSection('settings') : openLogin}
+              aria-label={session ? 'Account & verified credentials' : 'Sign in to participate'}
+              title={session ? 'Manage account & credentials' : 'Sign in'}
+            >
+              <div className="relative flex items-center justify-center">
+                <span className="topbar-avatar">
+                  {session && initials ? initials : <User size={15} />}
+                </span>
+                {session && (
+                  <span className="topbar-status-dot" title="Authenticated session" />
+                )}
+              </div>
+              <div className="account-text hidden sm:flex flex-col text-left pr-1">
+                <strong className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">
+                  {session ? (profile?.display_name || session.user.email?.split('@')[0]) : 'Sign In'}
+                </strong>
+                <small className="text-[10px] text-muted-foreground leading-tight">
+                  {session ? (profile ? roleLabel[profile.role] : 'Account') : 'Guest'}
+                </small>
+              </div>
             </button>
           </div>
         </header>
