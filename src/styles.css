@@ -1814,8 +1814,12 @@
   border-color: rgba(34, 197, 94, 0.45);
   box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(34, 197, 94, 0.25);
 }
+.network-card.clickable:active {
+  transform: translateY(-1px);
+}
 .network-card.clickable:focus-visible {
-  ring: 2px solid var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
   border-color: var(--primary);
 }
 .network-card-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--secondary); color: var(--primary); border-radius: 11px; flex-shrink: 0; }
@@ -1830,7 +1834,20 @@
 .capacity-progress::-moz-progress-bar { background: #92a276; }
 .network-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 5px; font-size: 9px; color: #8b957e; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 20px; }
 .network-card-footer > span { display: flex; align-items: center; gap: 5px; }
-.driver-avatar { display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 48px; height: 48px; font-size: 16px; background: var(--secondary); color: var(--primary); }
+.driver-avatar { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  border-radius: 50%; 
+  width: 44px; 
+  height: 44px; 
+  font-size: 14px; 
+  font-weight: 700;
+  background: var(--secondary); 
+  color: var(--primary); 
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.05);
+}
 .driver-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; font-size: 10px; color: var(--muted-foreground); }
 .dispatch-columns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .dispatch-column { 

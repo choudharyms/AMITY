@@ -19,6 +19,7 @@ import { RecipientDashboard } from '@/components/recipient-dashboard'
 import { ImpactView } from '@/components/impact-view'
 import { RecipientView, DriverView } from '@/components/network-views'
 import { RecipientDialog } from '@/components/recipient-dialog'
+import { DriverDialog } from '@/components/driver-dialog'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
 import { OverviewInsights } from '@/components/overview-insights'
@@ -33,7 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useSession } from './use-session'
 import { useProfile } from './use-profile'
-import { isActive, type Donation, type PilotData, type Recipient, type Section } from './types'
+import { isActive, type Donation, type Driver, type PilotData, type Recipient, type Section } from './types'
 import type { BackendHealth } from './use-pilot-data'
 import { cities } from './cities'
 
@@ -54,6 +55,7 @@ function getSection(): Section {
   const hash = rawHash.split('?')[0].split('&')[0]
   if (hash === 'post-donation' || hash === 'post-food-donation') return 'donations'
   if (hash.startsWith('recipients') || hash.startsWith('recipient-')) return 'recipients'
+  if (hash.startsWith('drivers') || hash.startsWith('driver-')) return 'drivers'
   return Object.keys(sectionNames).includes(hash) ? hash as Section : 'overview'
 }
 
@@ -67,10 +69,26 @@ function getRecipientIdFromUrl(): string | null {
     const qs = hash.slice(hash.indexOf('?') + 1)
     const params = new URLSearchParams(qs)
     const id = params.get('id') || params.get('recipient')
-    if (id) return id
+    if (id && (hash.startsWith('#recipients') || hash.startsWith('#recipient-'))) return id
   }
   const params = new URLSearchParams(window.location.search)
   return params.get('recipient') || params.get('shelter') || null
+}
+
+function getDriverIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash
+  if (hash.startsWith('#driver-')) {
+    return hash.replace('#driver-', '')
+  }
+  if (hash.includes('?')) {
+    const qs = hash.slice(hash.indexOf('?') + 1)
+    const params = new URLSearchParams(qs)
+    const id = params.get('id') || params.get('driver')
+    if (id && (hash.startsWith('#drivers') || hash.startsWith('#driver-'))) return id
+  }
+  const params = new URLSearchParams(window.location.search)
+  return params.get('driver') || null
 }
 
 /** Detect a freshly signed-up user who still has the default placeholder name */
@@ -108,6 +126,8 @@ export default function App({
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null)
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
+  const [focusedMapPointId, setFocusedMapPointId] = useState<string | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
   const [dismissDesktopPrompt, setDismissDesktopPrompt] = useState(false)
   const [isDesktop] = useState(isDesktopBrowser)
@@ -175,17 +195,25 @@ export default function App({
       setIsPostingView(isPost)
       updateSection(getSection())
 
-      const targetId = getRecipientIdFromUrl()
-      if (targetId && data?.recipients) {
-        const found = data.recipients.find(r => r.id === targetId)
+      const targetRecipientId = getRecipientIdFromUrl()
+      if (targetRecipientId && data?.recipients) {
+        const found = data.recipients.find(r => r.id === targetRecipientId)
         if (found) setSelectedRecipient(found)
       } else if (!hash.startsWith('#recipients') && !hash.startsWith('#recipient-')) {
         setSelectedRecipient(null)
       }
+
+      const targetDriverId = getDriverIdFromUrl()
+      if (targetDriverId && data?.drivers) {
+        const found = data.drivers.find(d => d.id === targetDriverId)
+        if (found) setSelectedDriver(found)
+      } else if (!hash.startsWith('#drivers') && !hash.startsWith('#driver-')) {
+        setSelectedDriver(null)
+      }
     }
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
-  }, [data?.recipients])
+  }, [data?.recipients, data?.drivers])
 
   useEffect(() => {
     const targetId = getRecipientIdFromUrl()
@@ -194,6 +222,14 @@ export default function App({
       if (found) setSelectedRecipient(found)
     }
   }, [data?.recipients])
+
+  useEffect(() => {
+    const targetId = getDriverIdFromUrl()
+    if (targetId && data?.drivers) {
+      const found = data.drivers.find(d => d.id === targetId)
+      if (found) setSelectedDriver(found)
+    }
+  }, [data?.drivers])
 
   function handleSelectRecipient(r: Recipient) {
     setSelectedRecipient(r)
@@ -204,6 +240,31 @@ export default function App({
     setSelectedRecipient(null)
     if (window.location.hash.startsWith('#recipients') || window.location.hash.startsWith('#recipient-')) {
       window.location.hash = 'recipients'
+    }
+  }
+
+  function handleSelectDriver(d: Driver) {
+    setSelectedDriver(d)
+    window.location.hash = `drivers?id=${encodeURIComponent(d.id)}`
+  }
+
+  function handleCloseDriver() {
+    setSelectedDriver(null)
+    if (window.location.hash.startsWith('#drivers') || window.location.hash.startsWith('#driver-')) {
+      window.location.hash = 'drivers'
+    }
+  }
+
+  function handleLocateDriver(d: Driver) {
+    setFocusedMapPointId(d.id)
+    setSection('overview')
+    toast.info(`Volunteer located on live map: ${d.name} (${d.vehicle})`)
+  }
+
+  function handleDispatchDriver(d?: Driver) {
+    setSection('dispatch')
+    if (d) {
+      toast.info(`Viewing dispatch corridors for ${d.name}`)
     }
   }
 
@@ -248,7 +309,7 @@ export default function App({
         <div className="overview-content">
           <OverviewMetrics data={data} />
           <div className="overview-middle">
-            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
+            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
             <ActivityFeed data={data} navigate={setSection} />
           </div>
           <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
@@ -271,7 +332,7 @@ export default function App({
       <div className="overview-content">
         <OverviewMetrics data={data} />
         <div className="overview-middle">
-          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
+          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
           <ActivityFeed data={data} navigate={setSection} />
         </div>
         <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
@@ -518,12 +579,21 @@ export default function App({
                       toast.info(`Posting donation earmarked for ${r.name} (${r.area})`)
                     }}
                     onLocateOnMap={r => {
+                      setFocusedMapPointId(r.id)
                       setSection('overview')
                       toast.info(`Shelter located: ${r.name} · ${r.area}`)
                     }}
                   />
                 )}
-                {section === 'drivers' && <DriverView data={data} cityId={cityId} onDispatch={() => setSection('dispatch')} />}
+                {section === 'drivers' && (
+                  <DriverView
+                    data={data}
+                    cityId={cityId}
+                    onSelectDriver={handleSelectDriver}
+                    onLocateOnMap={handleLocateDriver}
+                    onDispatch={handleDispatchDriver}
+                  />
+                )}
                 {section === 'impact' && <ImpactView data={data} />}
                 {section === 'settings' && (
                   <SettingsView
@@ -563,12 +633,25 @@ export default function App({
           toast.info(`Posting donation earmarked for ${r.name} (${r.area})`)
         }}
         onLocateOnMap={r => {
+          setFocusedMapPointId(r.id)
           setSection('overview')
           toast.info(`Shelter located on live map: ${r.name} · ${r.area}`)
         }}
         onViewDispatch={() => {
           setSection('dispatch')
         }}
+        onSelectDonation={d => {
+          setSelected(d)
+        }}
+      />
+      <DriverDialog
+        driver={selectedDriver}
+        data={data}
+        cityId={cityId}
+        now={now}
+        onClose={handleCloseDriver}
+        onLocateOnMap={handleLocateDriver}
+        onViewDispatch={handleDispatchDriver}
         onSelectDonation={d => {
           setSelected(d)
         }}

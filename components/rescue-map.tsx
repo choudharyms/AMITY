@@ -117,12 +117,14 @@ export const RescueMap = memo(function RescueMap({
   expanded = false,
   onExpand,
   selectedDonationId,
+  selectedPointId,
 }: {
   data?: PilotData
   cityId?: string
   expanded?: boolean
   onExpand?: () => void
   selectedDonationId?: string
+  selectedPointId?: string
 }) {
   const city = useMemo(() => cities.find(item => item.id === cityId) ?? { id: 'blr', name: 'Bengaluru', state: 'Karnataka', longitude: 77.598, latitude: 12.9716 }, [cityId])
   const mapRef = useRef<MapRef>(null)
@@ -256,6 +258,31 @@ export const RescueMap = memo(function RescueMap({
     return points
   }, [data, activeDonationsByDonor, urgentDonorIds])
 
+  // Focus and select point when selectedPointId changes
+  useEffect(() => {
+    if (selectedPointId && allPoints.length > 0) {
+      const found = allPoints.find(p => p.id === selectedPointId)
+      if (found) {
+        setSelectedPoint(found)
+        if (found.kind === 'driver' && activeFilter !== 'all' && activeFilter !== 'drivers') {
+          setActiveFilter('drivers')
+        } else if (found.kind === 'recipient' && activeFilter !== 'all' && activeFilter !== 'recipients') {
+          setActiveFilter('recipients')
+        } else if (found.kind === 'donor' && activeFilter !== 'all' && activeFilter !== 'donors') {
+          setActiveFilter('donors')
+        }
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [found.longitude, found.latitude],
+            zoom: 14.5,
+            duration: 800,
+            essential: true,
+          })
+        }
+      }
+    }
+  }, [selectedPointId, allPoints, activeFilter])
+
   const activeDonations = useMemo(() => {
     return data?.donations.filter(
       d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
@@ -267,7 +294,7 @@ export const RescueMap = memo(function RescueMap({
     return allPoints.filter(p => {
       if (activeFilter === 'donors') return p.kind === 'donor'
       if (activeFilter === 'recipients') return p.kind === 'recipient'
-      if (activeFilter === 'drivers') return p.kind === 'driver' && p.isAvailable
+      if (activeFilter === 'drivers') return p.kind === 'driver'
       if (activeFilter === 'corridors') {
         return activeDonations.some(d => d.donor_id === p.id || d.recipient_id === p.id || d.driver_id === p.id)
       }
