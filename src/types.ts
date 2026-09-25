@@ -15,6 +15,7 @@ export interface Driver {
   id: string; name: string; latitude: number; longitude: number;
 availability: boolean; vehicle: string; capacity_kg: number; is_synthetic: boolean;
 city_id?: string;
+  user_id?: string | null;
 }
 export interface Donation {
   id: string; donor_id: string; item: string; category: Category; qty_kg: number;
