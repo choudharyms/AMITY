@@ -18,6 +18,7 @@ import { DriverDashboard } from '@/components/driver-dashboard'
 import { RecipientDashboard } from '@/components/recipient-dashboard'
 import { ImpactView } from '@/components/impact-view'
 import { RecipientView, DriverView } from '@/components/network-views'
+import { RecipientDialog } from '@/components/recipient-dialog'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
 import { RescueMap } from '@/components/rescue-map'
@@ -31,7 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useSession } from './use-session'
 import { useProfile } from './use-profile'
-import { isActive, type Donation, type PilotData, type Section } from './types'
+import { isActive, type Donation, type PilotData, type Recipient, type Section } from './types'
 import type { BackendHealth } from './use-pilot-data'
 import { cities } from './cities'
 
@@ -47,9 +48,28 @@ const descriptions: Record<Section, string> = {
 }
 
 function getSection(): Section {
-  const hash = window.location.hash.slice(1)
+  if (typeof window === 'undefined') return 'overview'
+  const rawHash = window.location.hash.slice(1)
+  const hash = rawHash.split('?')[0].split('&')[0]
   if (hash === 'post-donation' || hash === 'post-food-donation') return 'donations'
+  if (hash.startsWith('recipients') || hash.startsWith('recipient-')) return 'recipients'
   return Object.keys(sectionNames).includes(hash) ? hash as Section : 'overview'
+}
+
+function getRecipientIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash
+  if (hash.startsWith('#recipient-')) {
+    return hash.replace('#recipient-', '')
+  }
+  if (hash.includes('?')) {
+    const qs = hash.slice(hash.indexOf('?') + 1)
+    const params = new URLSearchParams(qs)
+    const id = params.get('id') || params.get('recipient')
+    if (id) return id
+  }
+  const params = new URLSearchParams(window.location.search)
+  return params.get('recipient') || params.get('shelter') || null
 }
 
 /** Detect a freshly signed-up user who still has the default placeholder name */
@@ -86,6 +106,7 @@ export default function App({
   const [posting, setPosting] = useState(false)
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
+  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null)
   const [expandedMap, setExpandedMap] = useState(false)
   const [dismissDesktopPrompt, setDismissDesktopPrompt] = useState(false)
   const [isDesktop] = useState(isDesktopBrowser)
@@ -123,10 +144,39 @@ export default function App({
       const isPost = hash === '#post-donation' || hash === '#post-food-donation'
       setIsPostingView(isPost)
       updateSection(getSection())
+
+      const targetId = getRecipientIdFromUrl()
+      if (targetId && data?.recipients) {
+        const found = data.recipients.find(r => r.id === targetId)
+        if (found) setSelectedRecipient(found)
+      } else if (!hash.startsWith('#recipients') && !hash.startsWith('#recipient-')) {
+        setSelectedRecipient(null)
+      }
     }
     window.addEventListener('hashchange', handleHash)
     return () => { clearInterval(tick); window.removeEventListener('hashchange', handleHash) }
-  }, [])
+  }, [data?.recipients])
+
+  useEffect(() => {
+    const targetId = getRecipientIdFromUrl()
+    if (targetId && data?.recipients) {
+      const found = data.recipients.find(r => r.id === targetId)
+      if (found) setSelectedRecipient(found)
+    }
+  }, [data?.recipients])
+
+  function handleSelectRecipient(r: Recipient) {
+    setSelectedRecipient(r)
+    window.location.hash = `recipients?id=${encodeURIComponent(r.id)}`
+  }
+
+  function handleCloseRecipient() {
+    setSelectedRecipient(null)
+    if (window.location.hash.startsWith('#recipients') || window.location.hash.startsWith('#recipient-')) {
+      window.location.hash = 'recipients'
+    }
+  }
+
   function setSection(next: Section) {
     setIsPostingView(false)
     updateSection(next)
@@ -168,7 +218,7 @@ export default function App({
         <div className="overview-content">
           <OverviewMetrics data={data} />
           <div className="overview-middle">
-            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} />
+            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
             <ActivityFeed data={data} navigate={setSection} />
           </div>
           {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
@@ -190,7 +240,7 @@ export default function App({
       <div className="overview-content">
         <OverviewMetrics data={data} />
         <div className="overview-middle">
-          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} />
+          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
           <ActivityFeed data={data} navigate={setSection} />
         </div>
         {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
@@ -394,8 +444,22 @@ export default function App({
                 {section === 'dispatch' && (
                   <DispatchView data={data} now={now} cityId={cityId} role={profile?.role} openDonation={setSelected} refresh={refresh ?? (() => {})} />
                 )}
-                {section === 'recipients' && <RecipientView data={data} />}
-                {section === 'drivers' && <DriverView data={data} onDispatch={() => setSection('dispatch')} />}
+                {section === 'recipients' && (
+                  <RecipientView
+                    data={data}
+                    cityId={cityId}
+                    onSelectRecipient={handleSelectRecipient}
+                    onDonateToRecipient={r => {
+                      openPostDonation()
+                      toast.info(`Posting donation earmarked for ${r.name} (${r.area})`)
+                    }}
+                    onLocateOnMap={r => {
+                      setSection('overview')
+                      toast.info(`Shelter located: ${r.name} · ${r.area}`)
+                    }}
+                  />
+                )}
+                {section === 'drivers' && <DriverView data={data} cityId={cityId} onDispatch={() => setSection('dispatch')} />}
                 {section === 'impact' && <ImpactView data={data} />}
                 {section === 'settings' && (
                   <SettingsView
@@ -424,6 +488,27 @@ export default function App({
       )}
 
       <DonationDialog donation={selected} data={data} now={now} close={() => setSelected(null)} />
+      <RecipientDialog
+        recipient={selectedRecipient}
+        data={data}
+        cityId={cityId}
+        now={now}
+        onClose={handleCloseRecipient}
+        onDonate={r => {
+          openPostDonation()
+          toast.info(`Posting donation earmarked for ${r.name} (${r.area})`)
+        }}
+        onLocateOnMap={r => {
+          setSection('overview')
+          toast.info(`Shelter located on live map: ${r.name} · ${r.area}`)
+        }}
+        onViewDispatch={() => {
+          setSection('dispatch')
+        }}
+        onSelectDonation={d => {
+          setSelected(d)
+        }}
+      />
       <DonationForm open={posting} data={data} cityId={cityId} refresh={refresh ?? (() => {})} onClose={() => setPosting(false)} />
 
       {/* Help / Notifications dialog */}

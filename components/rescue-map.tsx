@@ -19,6 +19,7 @@ import {
   Moon,
   Navigation,
   RotateCcw,
+  Route,
   Search,
   Sparkles,
   Store,
@@ -115,11 +116,13 @@ export const RescueMap = memo(function RescueMap({
   cityId = 'blr',
   expanded = false,
   onExpand,
+  selectedDonationId,
 }: {
   data?: PilotData
   cityId?: string
   expanded?: boolean
   onExpand?: () => void
+  selectedDonationId?: string
 }) {
   const city = useMemo(() => cities.find(item => item.id === cityId) ?? { id: 'blr', name: 'Bengaluru', state: 'Karnataka', longitude: 77.598, latitude: 12.9716 }, [cityId])
   const mapRef = useRef<MapRef>(null)
@@ -138,6 +141,17 @@ export const RescueMap = memo(function RescueMap({
   const [failed, setFailed] = useState(false)
   const [showCorridors, setShowCorridors] = useState(true)
   const [roadCorridors, setRoadCorridors] = useState<Record<string, [number, number][]>>({})
+  const [roadCorridorsMeta, setRoadCorridorsMeta] = useState<Record<string, { distanceKm: number; durationMinutes: number }>>({})
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(selectedDonationId ?? null)
+  const [cursorStyle, setCursorStyle] = useState('grab')
+
+  // Sync selectedDonationId prop if passed
+  useEffect(() => {
+    if (selectedDonationId) {
+      setSelectedRouteId(selectedDonationId)
+      setShowCorridors(true)
+    }
+  }, [selectedDonationId])
 
   // Watchdog timer: If loading takes longer than 4.5 seconds, mark failed so user can switch or see fallback
   useEffect(() => {
@@ -242,15 +256,24 @@ export const RescueMap = memo(function RescueMap({
     return points
   }, [data, activeDonationsByDonor, urgentDonorIds])
 
+  const activeDonations = useMemo(() => {
+    return data?.donations.filter(
+      d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
+    ) ?? []
+  }, [data?.donations])
+
   // Filtered Points according to Category Tabs
   const filteredPoints = useMemo(() => {
     return allPoints.filter(p => {
       if (activeFilter === 'donors') return p.kind === 'donor'
       if (activeFilter === 'recipients') return p.kind === 'recipient'
       if (activeFilter === 'drivers') return p.kind === 'driver' && p.isAvailable
+      if (activeFilter === 'corridors') {
+        return activeDonations.some(d => d.donor_id === p.id || d.recipient_id === p.id || d.driver_id === p.id)
+      }
       return true
     })
-  }, [allPoints, activeFilter])
+  }, [allPoints, activeFilter, activeDonations])
 
   // Search Results
   const searchResults = useMemo(() => {
@@ -324,6 +347,19 @@ interface CorridorFeature {
     item: string
     qty_kg: number
     status: string
+    donor_id: string
+    donor_name: string
+    donor_area: string
+    recipient_id: string
+    recipient_name: string
+    recipient_area: string
+    driver_id: string
+    driver_name: string
+    driver_vehicle: string
+    distance_km: number
+    duration_mins: number
+    safe_until: string
+    is_selected: boolean
   }
 }
 
@@ -332,9 +368,6 @@ interface CorridorFeature {
     if (!data?.donations || !showCorridors) return
     let isMounted = true
 
-    const activeDonations = data.donations.filter(
-      d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
-    )
     const donorMap = new Map(data.donors.map(d => [d.id, d]))
     const recipientMap = new Map(data.recipients.map(r => [r.id, r]))
     const driverMap = new Map(data.drivers.map(dr => [dr.id, dr]))
@@ -352,29 +385,34 @@ interface CorridorFeature {
         const routeKey = `${cityId}:${donation.id}:${waypoints.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join(';')}`
 
         const routeRequest = fetchDonationRoute(donation.id, cityId)
-          .then(route => ({ coordinates: route.coordinates as [number, number][] }))
+          .then(route => ({
+            coordinates: route.coordinates as [number, number][],
+            distanceKm: route.distance_km,
+            durationMinutes: route.duration_minutes,
+          }))
           .catch(() => getRoadRoute(waypoints))
 
         routeRequest.then(route => {
           if (isMounted && route.coordinates?.length >= 2) {
             setRoadCorridors(prev => {
-              if (prev[routeKey] === route.coordinates) return prev
-              return { ...prev, [routeKey]: route.coordinates }
+              if (prev[donation.id] === route.coordinates) return prev
+              return { ...prev, [donation.id]: route.coordinates }
             })
+            setRoadCorridorsMeta(prev => ({
+              ...prev,
+              [donation.id]: { distanceKm: route.distanceKm, durationMinutes: route.durationMinutes }
+            }))
           }
         })
       }
     })
 
     return () => { isMounted = false }
-  }, [data?.donations, data?.donors, data?.recipients, data?.drivers, showCorridors])
+  }, [activeDonations, data?.donors, data?.recipients, data?.drivers, showCorridors, cityId])
 
-  // Active Rescue Corridors (GeoJSON LineStrings with real road geometry)
+  // Active Rescue Corridors (GeoJSON LineStrings with real road geometry & rich telemetry)
   const corridorsGeoJSON = useMemo(() => {
     if (!data?.donations || !showCorridors) return null
-    const activeDonations = data.donations.filter(
-      d => d.status === 'matched' || d.status === 'accepted' || d.status === 'picked_up'
-    )
 
     const features: CorridorFeature[] = []
     const donorMap = new Map(data.donors.map(d => [d.id, d]))
@@ -387,13 +425,14 @@ interface CorridorFeature {
       const driver = donation.driver_id ? driverMap.get(donation.driver_id) : null
 
       if (donor && recipient) {
-        const waypoints: [number, number][] = []
-        if (donation.status !== 'picked_up' && driver) waypoints.push([driver.longitude, driver.latitude])
-        waypoints.push([donor.longitude, donor.latitude])
-        waypoints.push([recipient.longitude, recipient.latitude])
-        const routeKey = `${cityId}:${donation.id}:${waypoints.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join(';')}`
-        const coords = roadCorridors[routeKey]
-        if (!coords || coords.length < 2) return
+        const directCoords: [number, number][] = []
+        if (donation.status !== 'picked_up' && driver) directCoords.push([driver.longitude, driver.latitude])
+        directCoords.push([donor.longitude, donor.latitude])
+        directCoords.push([recipient.longitude, recipient.latitude])
+
+        // Use real road geometry if fetched, otherwise direct path
+        const coords = roadCorridors[donation.id] || directCoords
+        const meta = roadCorridorsMeta[donation.id]
 
         features.push({
           type: 'Feature',
@@ -406,6 +445,19 @@ interface CorridorFeature {
             item: donation.item,
             qty_kg: donation.qty_kg,
             status: donation.status,
+            donor_id: donor.id,
+            donor_name: donor.name,
+            donor_area: donor.area,
+            recipient_id: recipient.id,
+            recipient_name: recipient.name,
+            recipient_area: recipient.area,
+            driver_id: driver?.id ?? '',
+            driver_name: driver?.name ?? 'Assigned volunteer',
+            driver_vehicle: driver?.vehicle ?? 'Eco Courier',
+            distance_km: meta?.distanceKm ?? 0,
+            duration_mins: meta?.durationMinutes ?? 0,
+            safe_until: donation.safe_until,
+            is_selected: donation.id === selectedRouteId,
           },
         })
       }
@@ -415,14 +467,68 @@ interface CorridorFeature {
       type: 'FeatureCollection' as const,
       features,
     }
-  }, [cityId, data, showCorridors, roadCorridors])
+  }, [data, showCorridors, activeDonations, roadCorridors, roadCorridorsMeta, selectedRouteId])
 
   const activeCorridorCount = data?.donations.filter(
     donation => donation.status === 'matched' || donation.status === 'accepted' || donation.status === 'picked_up'
   ).length ?? 0
   const renderedCorridorCount = corridorsGeoJSON?.features.length ?? 0
 
+  // Currently selected route telemetry
+  const selectedRouteDetails = useMemo(() => {
+    if (!selectedRouteId || !corridorsGeoJSON) return null
+    const feature = corridorsGeoJSON.features.find(f => f.properties.id === selectedRouteId)
+    return feature ? feature.properties : null
+  }, [selectedRouteId, corridorsGeoJSON])
+
+  // Active rescue corresponding to the currently inspected point (if any)
+  const activeDonationForPoint = useMemo(() => {
+    if (!selectedPoint) return null
+    return activeDonations.find(
+      d => d.donor_id === selectedPoint.id || d.recipient_id === selectedPoint.id || d.driver_id === selectedPoint.id
+    ) || null
+  }, [selectedPoint, activeDonations])
+
   // Handlers
+  const handleRecenter = useCallback(() => {
+    mapRef.current?.flyTo({
+      center: [city.longitude, city.latitude],
+      zoom: 11.75,
+      pitch: 0,
+      bearing: 0,
+      duration: 700,
+      essential: true,
+    })
+  }, [city])
+
+  const fitRouteInView = useCallback((coords: [number, number][]) => {
+    if (!mapRef.current || coords.length < 2) return
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity
+    for (const [lon, lat] of coords) {
+      if (lon < minLon) minLon = lon
+      if (lat < minLat) minLat = lat
+      if (lon > maxLon) maxLon = lon
+      if (lat > maxLat) maxLat = lat
+    }
+    mapRef.current.fitBounds(
+      [[minLon, minLat], [maxLon, maxLat]],
+      { padding: { top: 70, bottom: 90, left: 60, right: 60 }, duration: 800, essential: true }
+    )
+  }, [])
+
+  const fitAllCorridors = useCallback(() => {
+    if (!mapRef.current) return
+    const allCoords: [number, number][] = []
+    Object.values(roadCorridors).forEach(coords => {
+      coords.forEach(pt => allCoords.push(pt))
+    })
+    if (allCoords.length >= 2) {
+      fitRouteInView(allCoords)
+    } else {
+      handleRecenter()
+    }
+  }, [roadCorridors, fitRouteInView, handleRecenter])
+
   const handleClusterClick = useCallback((cluster: MapCluster) => {
     mapRef.current?.flyTo({
       center: [cluster.longitude, cluster.latitude],
@@ -447,17 +553,6 @@ interface CorridorFeature {
     setSearchQuery('')
     handlePointSelect(point)
   }, [handlePointSelect])
-
-  const handleRecenter = useCallback(() => {
-    mapRef.current?.flyTo({
-      center: [city.longitude, city.latitude],
-      zoom: 11.75,
-      pitch: 0,
-      bearing: 0,
-      duration: 700,
-      essential: true,
-    })
-  }, [city])
 
   // Recenter when selected city changes
   useEffect(() => {
@@ -557,6 +652,21 @@ interface CorridorFeature {
               <span className="pill-dot driver-dot" />
               Drivers ({data?.drivers.filter(d => d.availability).length ?? 0})
             </button>
+            <button
+              className={`map-filter-pill ${activeFilter === 'corridors' ? 'active' : ''}`}
+              onClick={() => {
+                const next = activeFilter === 'corridors' ? 'all' : 'corridors'
+                setActiveFilter(next)
+                setShowCorridors(true)
+                if (next === 'corridors') {
+                  fitAllCorridors()
+                }
+              }}
+              title="Highlight active rescue corridors"
+            >
+              <Route size={12} className="inline mr-1" />
+              Routes ({activeDonations.length})
+            </button>
           </div>
 
           {onExpand && (
@@ -586,6 +696,24 @@ interface CorridorFeature {
           mapStyle={activeThemeStyle}
           attributionControl={{ compact: true }}
           style={{ width: '100%', height: '100%' }}
+          cursor={cursorStyle}
+          interactiveLayerIds={['corridor-hitbox', 'corridor-core']}
+          onClick={(e) => {
+            const f = e.features?.[0]
+            if (f && f.properties?.id) {
+              setSelectedRouteId(f.properties.id)
+              const coords = roadCorridors[f.properties.id]
+              if (coords) fitRouteInView(coords)
+            }
+          }}
+          onMouseEnter={(e) => {
+            if (e.features && e.features.length > 0) {
+              setCursorStyle('pointer')
+            }
+          }}
+          onMouseLeave={() => {
+            setCursorStyle('grab')
+          }}
           onZoomEnd={handleZoomChange}
           onLoad={() => {
             setLoaded(true)
@@ -609,25 +737,90 @@ interface CorridorFeature {
           {/* WebGL Rescue Corridor Paths (Joint VRP Visual Flow) - guarded until style is loaded */}
           {loaded && corridorsGeoJSON && (
             <Source id="rescue-corridors" type="geojson" data={corridorsGeoJSON}>
+              {/* 1. High contrast Casing Layer so the route clearly stands out on any OSM map tiles */}
+              <Layer
+                id="corridor-casing"
+                type="line"
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{
+                  'line-color': themeMode === 'dark' ? '#0f172a' : '#ffffff',
+                  'line-width': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    9,
+                    6.5,
+                  ],
+                  'line-opacity': 0.95,
+                }}
+              />
+              {/* 2. Soft Ambient Glow */}
               <Layer
                 id="corridor-glow"
                 type="line"
                 layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 paint={{
-                  'line-color': themeMode === 'dark' ? '#34d399' : '#059669',
-                  'line-width': 5.5,
-                  'line-opacity': 0.35,
-                  'line-blur': 2.5,
+                  'line-color': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    '#f59e0b',
+                    themeMode === 'dark' ? '#34d399' : '#059669',
+                  ],
+                  'line-width': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    12,
+                    6,
+                  ],
+                  'line-opacity': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    0.55,
+                    0.28,
+                  ],
+                  'line-blur': 3,
                 }}
               />
+              {/* 3. Core Vibrant Road Line */}
               <Layer
                 id="corridor-core"
                 type="line"
                 layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 paint={{
-                  'line-color': themeMode === 'dark' ? '#10b981' : '#047857',
-                  'line-width': 2.2,
-                  'line-dasharray': [2.5, 2],
+                  'line-color': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    '#d97706',
+                    themeMode === 'dark' ? '#10b981' : '#047857',
+                  ],
+                  'line-width': [
+                    'case',
+                    ['boolean', ['get', 'is_selected'], false],
+                    4.5,
+                    3.2,
+                  ],
+                  'line-opacity': 0.95,
+                }}
+              />
+              {/* 4. Dashed Flow Overlay */}
+              <Layer
+                id="corridor-flow"
+                type="line"
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{
+                  'line-color': '#ffffff',
+                  'line-width': 1.8,
+                  'line-dasharray': [2, 3],
+                  'line-opacity': 0.85,
+                }}
+              />
+              {/* 5. Invisible Hitbox for smooth user clicks */}
+              <Layer
+                id="corridor-hitbox"
+                type="line"
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{
+                  'line-width': 26,
+                  'line-opacity': 0.001,
                 }}
               />
             </Source>
@@ -774,6 +967,22 @@ interface CorridorFeature {
                   >
                     Close
                   </Button>
+                  {activeDonationForPoint && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="detail-action-btn"
+                      onClick={() => {
+                        setSelectedRouteId(activeDonationForPoint.id)
+                        setShowCorridors(true)
+                        const coords = roadCorridors[activeDonationForPoint.id]
+                        if (coords) fitRouteInView(coords)
+                      }}
+                    >
+                      <Route size={12} className="mr-1" />
+                      View route
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     size="sm"
@@ -847,6 +1056,87 @@ interface CorridorFeature {
           )}
         </div>
 
+        {/* Floating Route Inspector Card */}
+        {selectedRouteDetails && (
+          <div className="map-route-card" role="dialog" aria-label="Rescue route details">
+            <div className="map-route-header">
+              <div className="flex items-center gap-2">
+                <div className="route-badge-icon">
+                  <Route size={15} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold leading-tight">{selectedRouteDetails.item}</h4>
+                  <span className="text-[10px] text-muted-foreground">{selectedRouteDetails.qty_kg} kg rescue corridor</span>
+                </div>
+              </div>
+              <button
+                className="route-close-btn"
+                onClick={() => setSelectedRouteId(null)}
+                aria-label="Close route details"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="map-route-stops">
+              {selectedRouteDetails.driver_id && (
+                <div className="route-stop-item">
+                  <span className="stop-marker courier" />
+                  <div className="stop-info">
+                    <strong>{selectedRouteDetails.driver_name}</strong>
+                    <span>{selectedRouteDetails.driver_vehicle} · En route</span>
+                  </div>
+                </div>
+              )}
+              <div className="route-stop-item">
+                <span className="stop-marker pickup" />
+                <div className="stop-info">
+                  <strong>{selectedRouteDetails.donor_name}</strong>
+                  <span>Pickup · {selectedRouteDetails.donor_area}</span>
+                </div>
+              </div>
+              <div className="route-stop-item">
+                <span className="stop-marker dropoff" />
+                <div className="stop-info">
+                  <strong>{selectedRouteDetails.recipient_name}</strong>
+                  <span>Drop-off · {selectedRouteDetails.recipient_area}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="map-route-metrics">
+              <div>
+                <span>Distance</span>
+                <strong>{selectedRouteDetails.distance_km ? `${selectedRouteDetails.distance_km} km` : 'Calculating…'}</strong>
+              </div>
+              <div>
+                <span>ETA</span>
+                <strong>{selectedRouteDetails.duration_mins ? `${selectedRouteDetails.duration_mins} min` : '15 min'}</strong>
+              </div>
+              <div>
+                <span>Window</span>
+                <strong>
+                  {new Date(selectedRouteDetails.safe_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </strong>
+              </div>
+            </div>
+
+            <div className="map-route-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-xs h-7"
+                onClick={() => {
+                  const coords = roadCorridors[selectedRouteDetails.id]
+                  if (coords) fitRouteInView(coords)
+                }}
+              >
+                <Navigation size={12} className="mr-1.5" /> Center on route
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Map Control Tools (Floating Bottom-Left) */}
         <div className="map-floating-controls">
           <button
@@ -870,11 +1160,15 @@ interface CorridorFeature {
           {/* Corridors Toggle */}
           <button
             className={`map-control-btn ${showCorridors ? 'active' : ''}`}
-            onClick={() => setShowCorridors(!showCorridors)}
+            onClick={() => {
+              const next = !showCorridors
+              setShowCorridors(next)
+              if (next) fitAllCorridors()
+            }}
             aria-label="Toggle active rescue corridors"
-            title={showCorridors ? 'Hide rescue paths' : 'Show rescue paths'}
+            title={showCorridors ? 'Hide rescue paths' : 'Show and zoom all rescue corridors'}
           >
-            <Navigation size={15} />
+            <Route size={15} />
           </button>
 
           {/* Theme Quick Toggle */}

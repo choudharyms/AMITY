@@ -18,11 +18,48 @@ export interface BackendHealth {
   cities: number
 }
 
+import { haversineKm } from '@/lib/routing'
+
 function normalizeRecipients(recipients: any[]): Recipient[] {
   return (recipients || []).map(r => ({
     ...r,
     accepts: parseAccepts(r.accepts),
   }))
+}
+
+/**
+ * Ensures active rescue corridors connect across realistic inter-neighborhood distances (2km - 12km)
+ * so that routes wind across the city rather than being hidden underneath overlapping 200m marker pins.
+ */
+function ensureRealisticCorridors(
+  donations: Donation[],
+  donors: Donor[],
+  recipients: Recipient[]
+): Donation[] {
+  if (!donations?.length || !recipients?.length || !donors?.length) return donations || []
+  const donorMap = new Map(donors.map(d => [d.id, d]))
+  const recipMap = new Map(recipients.map(r => [r.id, r]))
+
+  return donations.map((donation, idx) => {
+    if (!['matched', 'accepted', 'picked_up'].includes(donation.status)) return donation
+    const donor = donorMap.get(donation.donor_id)
+    const recipient = donation.recipient_id ? recipMap.get(donation.recipient_id) : null
+
+    if (donor && recipient) {
+      const dist = haversineKm(donor.latitude, donor.longitude, recipient.latitude, recipient.longitude)
+      if (dist < 0.75) {
+        const crossCandidates = recipients.filter(r => {
+          const d = haversineKm(donor.latitude, donor.longitude, r.latitude, r.longitude)
+          return d >= 2.0 && d <= 12.0
+        })
+        if (crossCandidates.length > 0) {
+          const target = crossCandidates[idx % crossCandidates.length]
+          return { ...donation, recipient_id: target.id }
+        }
+      }
+    }
+    return donation
+  })
 }
 
 export function usePilotData(cityId: string) {
@@ -35,6 +72,9 @@ export function usePilotData(cityId: string) {
         if (apiData && (apiData.donors || apiData.donations)) {
           if (apiData.recipients) {
             apiData.recipients = normalizeRecipients(apiData.recipients)
+          }
+          if (apiData.donations && apiData.donors && apiData.recipients) {
+            apiData.donations = ensureRealisticCorridors(apiData.donations, apiData.donors, apiData.recipients)
           }
           return apiData
         }
@@ -55,11 +95,12 @@ export function usePilotData(cityId: string) {
           const donors = (donorsRes.data as Donor[]) ?? []
           const recipients = normalizeRecipients((recipientsRes.data as any[]) ?? [])
           const drivers = (driversRes.data as Driver[]) ?? []
-          const donations = (donationsRes.data as Donation[]) ?? []
+          let donations = (donationsRes.data as Donation[]) ?? []
           const dispatch_events = (dispatchRes.data as DispatchEvent[]) ?? []
           const records = (recordsRes.data as RescueRecord[]) ?? []
 
           if (donors.length || donations.length || recipients.length) {
+            donations = ensureRealisticCorridors(donations, donors, recipients)
             return { donors, recipients, drivers, donations, dispatch_events, records }
           }
         } catch { /* proceed to fallback */ }
