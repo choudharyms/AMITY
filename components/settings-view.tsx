@@ -316,7 +316,11 @@ export function SettingsView({
       description: 'Road directions for dispatch comparison',
       icon: Route,
       ready: backend?.routing === 'ors',
-      status: backend?.routing === 'ors' ? 'Key configured · checked on request' : 'Add ORS_API_KEY to the backend environment',
+      status: !backend?.ok
+        ? 'Awaiting backend connection'
+        : backend?.routing === 'ors'
+        ? 'Key configured · checked on request'
+        : 'Add ORS_API_KEY to the backend environment',
     },
     {
       name: 'FastAPI',
@@ -330,18 +334,24 @@ export function SettingsView({
       description: 'Structured extraction; send only operational text that is safe to share',
       icon: Sparkles,
       ready: !!backend?.gemini,
-      status: backend?.gemini ? 'Configured' : 'Not configured',
+      status: !backend?.ok
+        ? 'Awaiting backend connection'
+        : backend?.gemini
+        ? 'Configured'
+        : 'Add GEMINI_API_KEY to the backend environment',
     },
     {
       name: 'Telegram Bot',
       description: 'Emergency food rescue broadcasts and safe-window escalation dispatch',
       icon: MessageCircle,
       ready: isTelegramReady,
-      status: isTelegramReady
+      status: !backend?.ok
+        ? 'Awaiting backend connection'
+        : isTelegramReady
         ? `Configured (${tgStatus?.chat_id ? `ID: ${tgStatus.chat_id}` : 'Active'})`
         : tgStatus?.configured || backend?.telegram
         ? 'Needs chat ID'
-        : 'Not configured',
+        : 'Add TELEGRAM_BOT_TOKEN to backend',
     },
     {
       name: 'Web Push Notifications',

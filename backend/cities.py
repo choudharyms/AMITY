@@ -2,7 +2,31 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
-CITY_DIRECTORY: List[Dict[str, object]] = json.loads(
-    (Path(__file__).resolve().parent.parent / "shared" / "cities.json").read_text(encoding="utf-8")
-)
+def _load_cities() -> List[Dict[str, object]]:
+    candidates = [
+        Path(__file__).resolve().parent.parent / "shared" / "cities.json",
+        Path(__file__).resolve().parent / "cities.json",
+        Path.cwd() / "shared" / "cities.json",
+        Path.cwd() / "cities.json",
+    ]
+    for p in candidates:
+        if p.exists():
+            try:
+                return json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    return [
+        {"id": "blr", "name": "Bengaluru", "state": "Karnataka", "latitude": 12.9716, "longitude": 77.5946, "timezone": "Asia/Kolkata"},
+        {"id": "mum", "name": "Mumbai", "state": "Maharashtra", "latitude": 19.0760, "longitude": 72.8777, "timezone": "Asia/Kolkata"},
+        {"id": "del", "name": "Delhi", "state": "Delhi", "latitude": 28.6139, "longitude": 77.2090, "timezone": "Asia/Kolkata"},
+        {"id": "maa", "name": "Chennai", "state": "Tamil Nadu", "latitude": 13.0827, "longitude": 80.2707, "timezone": "Asia/Kolkata"},
+        {"id": "hyd", "name": "Hyderabad", "state": "Telangana", "latitude": 17.3850, "longitude": 78.4867, "timezone": "Asia/Kolkata"},
+        {"id": "pun", "name": "Pune", "state": "Maharashtra", "latitude": 18.5204, "longitude": 73.8567, "timezone": "Asia/Kolkata"},
+        {"id": "kol", "name": "Kolkata", "state": "West Bengal", "latitude": 22.5726, "longitude": 88.3639, "timezone": "Asia/Kolkata"},
+        {"id": "amd", "name": "Ahmedabad", "state": "Gujarat", "latitude": 23.0225, "longitude": 72.5714, "timezone": "Asia/Kolkata"},
+        {"id": "jai", "name": "Jaipur", "state": "Rajasthan", "latitude": 26.9124, "longitude": 75.7873, "timezone": "Asia/Kolkata"},
+        {"id": "lko", "name": "Lucknow", "state": "Uttar Pradesh", "latitude": 26.8467, "longitude": 80.9462, "timezone": "Asia/Kolkata"},
+    ]
+
+CITY_DIRECTORY: List[Dict[str, object]] = _load_cities()
 CITY_BY_ID = {str(city["id"]): city for city in CITY_DIRECTORY}

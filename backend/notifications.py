@@ -28,37 +28,48 @@ class NotificationManager:
 
     def reload_config(self):
         """Reload configuration from environment and .env file."""
+        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or self.bot_token
+        self.chat_id = os.getenv("TELEGRAM_CHAT_ID") or self.chat_id
+        self.vapid_public_key = os.getenv("VAPID_PUBLIC_KEY") or self.vapid_public_key
+        self.vapid_claim = os.getenv("VAPID_CLAIM_EMAIL") or self.vapid_claim
         if ENV_FILE.exists():
-            from dotenv import dotenv_values
-            env_vals = dotenv_values(ENV_FILE)
-            self.bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", self.bot_token)
-            self.chat_id = env_vals.get("TELEGRAM_CHAT_ID", self.chat_id)
-            self.vapid_public_key = env_vals.get("VAPID_PUBLIC_KEY", self.vapid_public_key)
-            priv_path = env_vals.get("VAPID_PRIVATE_KEY_PATH", "")
-            if priv_path:
-                p = Path(priv_path)
-                self.vapid_private_key_path = p if p.is_absolute() else ROOT_DIR / p
-            self.vapid_claim = env_vals.get("VAPID_CLAIM_EMAIL", self.vapid_claim)
+            try:
+                from dotenv import dotenv_values
+                env_vals = dotenv_values(ENV_FILE)
+                self.bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", self.bot_token)
+                self.chat_id = env_vals.get("TELEGRAM_CHAT_ID", self.chat_id)
+                self.vapid_public_key = env_vals.get("VAPID_PUBLIC_KEY", self.vapid_public_key)
+                priv_path = env_vals.get("VAPID_PRIVATE_KEY_PATH", "")
+                if priv_path:
+                    p = Path(priv_path)
+                    self.vapid_private_key_path = p if p.is_absolute() else ROOT_DIR / p
+                self.vapid_claim = env_vals.get("VAPID_CLAIM_EMAIL", self.vapid_claim)
+            except Exception:
+                pass
 
     def _persist_env_var(self, key: str, value: str):
-        """Safely update or append a key-value in .env file."""
-        if not ENV_FILE.exists():
-            ENV_FILE.write_text(f"{key}={value}\n", encoding="utf-8")
-            return
-        
-        lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
-        found = False
-        new_lines = []
-        for line in lines:
-            if line.strip().startswith(f"{key}=") or line.strip().startswith(f"{key} ="):
-                new_lines.append(f"{key}={value}")
-                found = True
-            else:
-                new_lines.append(line)
-        if not found:
-            new_lines.append(f"{key}={value}")
-        ENV_FILE.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        """Safely update or append a key-value in environment and .env file."""
         os.environ[key] = value
+        try:
+            if not ENV_FILE.exists():
+                ENV_FILE.write_text(f"{key}={value}\n", encoding="utf-8")
+                return
+            
+            lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+            found = False
+            new_lines = []
+            for line in lines:
+                if line.strip().startswith(f"{key}=") or line.strip().startswith(f"{key} ="):
+                    new_lines.append(f"{key}={value}")
+                    found = True
+                else:
+                    new_lines.append(line)
+            if not found:
+                new_lines.append(f"{key}={value}")
+            ENV_FILE.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        except Exception:
+            # Filesystem may be read-only in serverless/lambda environments
+            pass
 
     # ==================== TELEGRAM BOT INTEGRATION ====================
 

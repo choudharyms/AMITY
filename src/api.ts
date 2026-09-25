@@ -60,6 +60,8 @@ export interface RoadRouteGeometry {
   source: 'ors' | 'osrm'
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
+
 export async function apiRequest<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
@@ -70,7 +72,8 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, authen
     if (!data.session?.access_token) throw new Error('Sign in to continue.')
     headers.set('Authorization', `Bearer ${data.session.access_token}`)
   }
-  const res = await fetch(path, { ...init, headers })
+  const url = path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  const res = await fetch(url, { ...init, headers })
   if (!res.ok) {
     let detail = res.statusText || 'Request failed'
     try {
@@ -78,6 +81,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, authen
       detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body)
     } catch { /* use the HTTP status text */ }
     throw new Error(detail)
+  }
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error('Backend returned non-JSON response.')
   }
   return res.json() as Promise<T>
 }

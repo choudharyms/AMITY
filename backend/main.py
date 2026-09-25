@@ -22,12 +22,20 @@ app = FastAPI(
     version="2.0.0",
 )
 
+@app.middleware("http")
+async def ensure_api_prefix(request: Request, call_next):
+    # Ensure route path matches /api/... even if serverless runtime stripped /api prefix
+    path = request.scope.get("path", "")
+    if path and not path.startswith("/api"):
+        request.scope["path"] = "/api" + path
+    return await call_next(request)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -54,6 +62,8 @@ def snapshot_as_models(access_token: str, city_id: str):
     )
 
 
+@app.get("/")
+@app.get("/api")
 @app.get("/api/health")
 def get_health() -> Dict[str, Any]:
     notifications.reload_config()
