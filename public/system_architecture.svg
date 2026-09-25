@@ -1,0 +1,377 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 920" width="1440" height="920" style="background-color: #090D16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Background Grid Pattern -->
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1E293B" stroke-width="0.5" stroke-opacity="0.4"/>
+    </pattern>
+
+    <!-- Gradients -->
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0.95" />
+    </linearGradient>
+
+    <linearGradient id="engineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#132E27" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#091E19" stop-opacity="0.95" />
+    </linearGradient>
+
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2A1B3D" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#180F24" stop-opacity="0.95" />
+    </linearGradient>
+
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E2238" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#101324" stop-opacity="0.95" />
+    </linearGradient>
+
+    <!-- Glow & Shadow Filters -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    
+    <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Arrow Markers -->
+    <marker id="arrowEmerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10B981" />
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#06B6D4" />
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#A855F7" />
+    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3B82F6" />
+    </marker>
+  </defs>
+
+  <!-- Background Base Grid -->
+  <rect width="100%" height="100%" fill="#090D16" />
+  <rect width="100%" height="100%" fill="url(#grid)" />
+
+  <!-- TOP HEADER SECTION -->
+  <g id="Header" transform="translate(60, 36)">
+    <!-- Brand Badge -->
+    <rect x="0" y="0" width="136" height="26" rx="6" fill="#10B981" fill-opacity="0.15" stroke="#10B981" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="68" y="17" fill="#34D399" font-size="11" font-weight="700" letter-spacing="1.2" text-anchor="middle">AMIHACKS 1.0</text>
+
+    <!-- Track Badge -->
+    <rect x="146" y="0" width="190" height="26" rx="6" fill="#3B82F6" fill-opacity="0.12" stroke="#3B82F6" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="241" y="17" fill="#60A5FA" font-size="11" font-weight="600" letter-spacing="0.5" text-anchor="middle">TRACK A · SOCIAL IMPACT</text>
+
+    <!-- Title & Tagline -->
+    <text x="0" y="62" fill="#FFFFFF" font-size="28" font-weight="800" letter-spacing="-0.5">
+      AaharSetu <tspan fill="#34D399" font-weight="600">· आहारसेतु</tspan>
+      <tspan fill="#64748B" font-size="18" font-weight="400"> — End-to-End System Architecture</tspan>
+    </text>
+    <text x="0" y="86" fill="#94A3B8" font-size="13">
+      Real-Time Geospatial Food Rescue Routing, Multilingual AI Intake, and FSSAI Compliance Enforcement
+    </text>
+
+    <!-- Top Right Meta Pills -->
+    <g transform="translate(980, 8)">
+      <rect x="0" y="0" width="155" height="30" rx="8" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+      <circle cx="16" cy="15" r="4" fill="#10B981"/>
+      <text x="28" y="19" fill="#E2E8F0" font-size="11" font-weight="600">FastAPI + React 19</text>
+
+      <rect x="165" y="0" width="175" height="30" rx="8" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+      <circle cx="181" cy="15" r="4" fill="#06B6D4"/>
+      <text x="193" y="19" fill="#E2E8F0" font-size="11" font-weight="600">Supabase PostGIS</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 1: CLIENT & PRESENTATION TIER (TOP) -->
+  <!-- ========================================================================= -->
+  <g id="Layer1_Client" transform="translate(60, 140)">
+    <!-- Container Box -->
+    <rect x="0" y="0" width="1320" height="155" rx="14" fill="url(#clientGrad)" stroke="#334155" stroke-width="1.2" filter="url(#cardShadow)"/>
+    
+    <!-- Layer Header / Label -->
+    <rect x="20" y="14" width="180" height="24" rx="5" fill="#3B82F6" fill-opacity="0.15" stroke="#3B82F6" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="110" y="30" fill="#93C5FD" font-size="11" font-weight="700" letter-spacing="0.8" text-anchor="middle">LAYER 1 · CLIENT APPLICATION</text>
+    <text x="212" y="31" fill="#64748B" font-size="12">React 19 · TypeScript · Vite · Tailwind CSS · MapLibre GL · SWR</text>
+
+    <!-- 4 User Role & UI Interface Cards -->
+    <!-- Card 1: Donor Portal -->
+    <g transform="translate(20, 48)">
+      <rect x="0" y="0" width="305" height="92" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="28" height="28" rx="6" fill="#10B981" fill-opacity="0.2"/>
+      <text x="26" y="31" fill="#34D399" font-size="16" text-anchor="middle">🍲</text>
+      <text x="48" y="24" fill="#F8FAFC" font-size="13" font-weight="700">Donor Surplus Intake Portal</text>
+      <text x="48" y="38" fill="#94A3B8" font-size="11">Audio note or text in Hindi/English</text>
+      <path d="M 12 50 L 293 50" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• Voice/Text Instant Input Form</text>
+      <text x="12" y="81" fill="#CBD5E1" font-size="10.5">• Handover QR Code Presentation</text>
+    </g>
+
+    <!-- Card 2: Coordinator Command Center -->
+    <g transform="translate(345, 48)">
+      <rect x="0" y="0" width="315" height="92" rx="10" fill="#0F172A" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="12" y="12" width="28" height="28" rx="6" fill="#059669" fill-opacity="0.2"/>
+      <text x="26" y="31" fill="#34D399" font-size="16" text-anchor="middle">🗺️</text>
+      <text x="48" y="24" fill="#F8FAFC" font-size="13" font-weight="700">Coordinator Mission Control</text>
+      <text x="48" y="38" fill="#34D399" font-size="11">MapLibre GL Vector Geospatial View</text>
+      <path d="M 12 50 L 303 50" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• 24 Live Nodes (Donors, Shelters, Drivers)</text>
+      <text x="12" y="81" fill="#CBD5E1" font-size="10.5">• 5-Factor Score Matrix & Hard Blocks</text>
+    </g>
+
+    <!-- Card 3: Volunteer Driver App -->
+    <g transform="translate(680, 48)">
+      <rect x="0" y="0" width="305" height="92" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="28" height="28" rx="6" fill="#F59E0B" fill-opacity="0.2"/>
+      <text x="26" y="31" fill="#FBBF24" font-size="16" text-anchor="middle">🛵</text>
+      <text x="48" y="24" fill="#F8FAFC" font-size="13" font-weight="700">Volunteer Courier Dispatch</text>
+      <text x="48" y="38" fill="#94A3B8" font-size="11">Capacity: Auto (60kg), Van, Bike</text>
+      <path d="M 12 50 L 293 50" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• Turn-by-Turn Route Navigation</text>
+      <text x="12" y="81" fill="#CBD5E1" font-size="10.5">• Dual QR Scanner & Camera Custody</text>
+    </g>
+
+    <!-- Card 4: Shelter / Recipient Dashboard -->
+    <g transform="translate(1005, 48)">
+      <rect x="0" y="0" width="295" height="92" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="28" height="28" rx="6" fill="#8B5CF6" fill-opacity="0.2"/>
+      <text x="26" y="31" fill="#A78BFA" font-size="16" text-anchor="middle">🏠</text>
+      <text x="48" y="24" fill="#F8FAFC" font-size="13" font-weight="700">Shelter Inbound Ledger</text>
+      <text x="48" y="38" fill="#94A3B8" font-size="11">Need, capacity, & delivery logging</text>
+      <path d="M 12 50 L 283 50" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• 6-Digit OTP Handover Verification</text>
+      <text x="12" y="81" fill="#CBD5E1" font-size="10.5">• Meals Fed & Cold-Storage Telemetry</text>
+    </g>
+  </g>
+
+  <!-- CONNECTING ARROWS L1 -> L2 & L3 -->
+  <g id="Arrows_L1_to_L2" stroke-width="1.8" fill="none">
+    <!-- Donor Voice/Text -> Gemini AI -->
+    <path d="M 210 295 L 210 345 L 210 375" stroke="#A855F7" stroke-dasharray="4,4" marker-end="url(#arrowPurple)"/>
+    <text x="218" y="340" fill="#C084FC" font-size="10.5" font-weight="600">Raw Hindi/English Note</text>
+
+    <!-- Coordinator Dispatch -> Core Engines -->
+    <path d="M 500 295 L 500 375" stroke="#10B981" marker-end="url(#arrowEmerald)"/>
+    <text x="508" y="340" fill="#34D399" font-size="10.5" font-weight="600">REST API / SWR Dispatch</text>
+
+    <!-- Volunteer QR / Verification -> Token Service -->
+    <path d="M 830 295 L 830 375" stroke="#06B6D4" marker-end="url(#arrowCyan)"/>
+    <text x="838" y="340" fill="#38BDF8" font-size="10.5" font-weight="600">QR / OTP Custody Proof</text>
+
+    <!-- Shelter Ledger -> Supabase WebSocket -->
+    <path d="M 1150 295 L 1150 345 L 1150 635" stroke="#3B82F6" stroke-dasharray="5,3" marker-end="url(#arrowBlue)"/>
+    <text x="1158" y="340" fill="#60A5FA" font-size="10.5" font-weight="600">Realtime Subscriptions</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- MIDDLE SECTION: LAYER 2 (BACKEND ENGINES) & LAYER 3 (AI & GEO SERVICES) -->
+  <!-- ========================================================================= -->
+
+  <!-- LAYER 3: AI & GEOSPATIAL SERVICES (LEFT MIDDLE) -->
+  <g id="Layer3_AI" transform="translate(60, 380)">
+    <rect x="0" y="0" width="370" height="225" rx="14" fill="url(#aiGrad)" stroke="#7C3AED" stroke-opacity="0.4" stroke-width="1.2" filter="url(#cardShadow)"/>
+    
+    <rect x="18" y="14" width="165" height="24" rx="5" fill="#7C3AED" fill-opacity="0.2" stroke="#7C3AED" stroke-opacity="0.5" stroke-width="1"/>
+    <text x="100" y="30" fill="#DDD6FE" font-size="10.5" font-weight="700" letter-spacing="0.8" text-anchor="middle">AI & GEOSPATIAL APIS</text>
+    <text x="195" y="31" fill="#A78BFA" font-size="11">External Intelligence</text>
+
+    <!-- Gemini Card -->
+    <g transform="translate(18, 48)">
+      <rect x="0" y="0" width="334" height="74" rx="8" fill="#170F28" stroke="#5B21B6" stroke-width="1"/>
+      <text x="12" y="22" fill="#E9D5FF" font-size="12.5" font-weight="700">Google Gemini Flash-Lite</text>
+      <text x="12" y="38" fill="#C084FC" font-size="10.5">• Multilingual NLP Parser (Hindi, Hinglish, English)</text>
+      <text x="12" y="52" fill="#94A3B8" font-size="10.5">• Extracts: Quantity (kg), Food Type, Perishability</text>
+      <text x="12" y="66" fill="#34D399" font-size="10.5">✔ Zero PII to LLM: Names/GPS Never Exported</text>
+    </g>
+
+    <!-- OpenRouteService Card -->
+    <g transform="translate(18, 132)">
+      <rect x="0" y="0" width="334" height="78" rx="8" fill="#170F28" stroke="#5B21B6" stroke-width="1"/>
+      <text x="12" y="22" fill="#E9D5FF" font-size="12.5" font-weight="700">OpenRouteService API (ORS)</text>
+      <text x="12" y="38" fill="#C084FC" font-size="10.5">• Driving Distance Matrix & Real Road Geometries</text>
+      <text x="12" y="52" fill="#94A3B8" font-size="10.5">• Real-time Traffic Durations & Turn-by-Turn Paths</text>
+      <text x="12" y="68" fill="#38BDF8" font-size="10.5">⚡ Haversine Fallback Engine: Zero Downtime</text>
+    </g>
+  </g>
+
+  <!-- LAYER 2: BACKEND MICROSERVICES & ENGINES (CENTER MIDDLE) -->
+  <g id="Layer2_Engines" transform="translate(460, 380)">
+    <rect x="0" y="0" width="920" height="225" rx="14" fill="url(#engineGrad)" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2" filter="url(#cardShadow)"/>
+    
+    <rect x="20" y="14" width="220" height="24" rx="5" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-opacity="0.5" stroke-width="1"/>
+    <text x="130" y="30" fill="#6EE7B7" font-size="10.5" font-weight="700" letter-spacing="0.8" text-anchor="middle">LAYER 2 · FASTAPI CORE ENGINES</text>
+    <text x="250" y="31" fill="#64748B" font-size="12">High-Throughput Asynchronous Python Microservices</text>
+
+    <!-- Engine 1: FSSAI Safety Countdown -->
+    <g transform="translate(20, 48)">
+      <rect x="0" y="0" width="280" height="158" rx="10" fill="#0A1E18" stroke="#064E3B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#DC2626" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#EF4444" font-size="13" text-anchor="middle">⏱️</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">FSSAI Safety Engine</text>
+      <text x="44" y="38" fill="#F87171" font-size="10.5" font-weight="600">Perishable Window Countdown</text>
+      <path d="M 12 48 L 268 48" stroke="#134E3E" stroke-width="1"/>
+      <text x="12" y="66" fill="#E2E8F0" font-size="10.5">• Hot-Hold: 4 Hours Max</text>
+      <text x="12" y="82" fill="#E2E8F0" font-size="10.5">• Cooked Ambient: 2 Hours Max</text>
+      <text x="12" y="98" fill="#E2E8F0" font-size="10.5">• Cold-Chain Chilled: 6 Hours Max</text>
+      <rect x="12" y="112" width="256" height="34" rx="6" fill="#DC2626" fill-opacity="0.15" stroke="#DC2626" stroke-opacity="0.4"/>
+      <text x="20" y="127" fill="#FCA5A5" font-size="10" font-weight="700">AUTOMATED HARD BLOCK</text>
+      <text x="20" y="139" fill="#CBD5E1" font-size="9.5">Locks dispatch if road ETA > safe window</text>
+    </g>
+
+    <!-- Engine 2: 5-Factor Matching Algorithm -->
+    <g transform="translate(315, 48)">
+      <rect x="0" y="0" width="290" height="158" rx="10" fill="#0A1E18" stroke="#064E3B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#10B981" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#34D399" font-size="13" text-anchor="middle">⚖️</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">5-Factor Matching Engine</text>
+      <text x="44" y="38" fill="#34D399" font-size="10.5" font-weight="600">Transparent Multi-Objective Math</text>
+      <path d="M 12 48 L 278 48" stroke="#134E3E" stroke-width="1"/>
+      <text x="12" y="66" fill="#E2E8F0" font-size="10.5">• Urgency (35%): Expiry countdown weight</text>
+      <text x="12" y="82" fill="#E2E8F0" font-size="10.5">• Proximity (25%): Road distance matrix</text>
+      <text x="12" y="98" fill="#E2E8F0" font-size="10.5">• Need (20%): Shelter beneficiary urgency</text>
+      <text x="12" y="114" fill="#E2E8F0" font-size="10.5">• Capacity (10%): Available storage</text>
+      <text x="12" y="130" fill="#E2E8F0" font-size="10.5">• Reliability (10%): Historical acceptance rate</text>
+      <text x="12" y="146" fill="#34D399" font-size="9.5" font-weight="600">✔ Full breakdown displayed to coordinator</text>
+    </g>
+
+    <!-- Engine 3: VRP Routing & Custody Tokens -->
+    <g transform="translate(620, 48)">
+      <rect x="0" y="0" width="280" height="158" rx="10" fill="#0A1E18" stroke="#064E3B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#06B6D4" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#38BDF8" font-size="13" text-anchor="middle">🛣️</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">VRP Route &amp; Custody</text>
+      <text x="44" y="38" fill="#38BDF8" font-size="10.5" font-weight="600">Multi-Stop 2-Opt Optimization</text>
+      <path d="M 12 48 L 268 48" stroke="#134E3E" stroke-width="1"/>
+      <text x="12" y="66" fill="#E2E8F0" font-size="10.5">• 2-Opt TSP vs Greedy baseline</text>
+      <text x="12" y="82" fill="#E2E8F0" font-size="10.5">• Vehicle Payload Filtering (25–100 kg)</text>
+      <text x="12" y="98" fill="#E2E8F0" font-size="10.5">• Dual QR / OTP Handover Generator</text>
+      <text x="12" y="114" fill="#E2E8F0" font-size="10.5">• FSSAI Good Samaritan Compliance</text>
+      <rect x="12" y="126" width="256" height="24" rx="5" fill="#065F46" fill-opacity="0.3"/>
+      <text x="140" y="142" fill="#6EE7B7" font-size="10" font-weight="600" text-anchor="middle">&lt; 5 Min Benchmark from Post to Dispatch</text>
+    </g>
+  </g>
+
+  <!-- CONNECTING ARROWS L3 <-> L2 -->
+  <g id="Arrows_L3_to_L2" stroke-width="1.6" fill="none">
+    <path d="M 430 435 L 460 435" stroke="#A855F7" marker-end="url(#arrowPurple)"/>
+    <path d="M 430 520 L 460 520" stroke="#06B6D4" marker-end="url(#arrowCyan)"/>
+  </g>
+
+  <!-- CONNECTING ARROWS L2 -> L4 -->
+  <g id="Arrows_L2_to_L4" stroke-width="1.8" fill="none">
+    <path d="M 605 605 L 605 635" stroke="#10B981" marker-end="url(#arrowEmerald)"/>
+    <text x="612" y="624" fill="#34D399" font-size="10" font-weight="600">Live PostGIS Queries</text>
+
+    <path d="M 920 605 L 920 635" stroke="#06B6D4" marker-end="url(#arrowCyan)"/>
+    <text x="928" y="624" fill="#38BDF8" font-size="10" font-weight="600">Cryptographic Audit Logs</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 4: DATA, SPATIAL & SECURITY TIER (SUPABASE) (BOTTOM) -->
+  <!-- ========================================================================= -->
+  <g id="Layer4_Database" transform="translate(60, 640)">
+    <!-- Container Box -->
+    <rect x="0" y="0" width="1320" height="235" rx="14" fill="url(#dbGrad)" stroke="#1E3A8A" stroke-opacity="0.4" stroke-width="1.2" filter="url(#cardShadow)"/>
+    
+    <!-- Layer Header / Label -->
+    <rect x="20" y="14" width="250" height="24" rx="5" fill="#3B82F6" fill-opacity="0.2" stroke="#3B82F6" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="145" y="30" fill="#93C5FD" font-size="10.5" font-weight="700" letter-spacing="0.8" text-anchor="middle">LAYER 4 · DATABASE, SPATIAL &amp; SECURITY</text>
+    <text x="282" y="31" fill="#64748B" font-size="12">Supabase PostgreSQL 15 · PostGIS Spatial Engine · Row-Level Security (RLS)</text>
+
+    <!-- 4 Core Data Columns -->
+    <!-- Column 1: PostGIS Spatial Queries -->
+    <g transform="translate(20, 48)">
+      <rect x="0" y="0" width="305" height="170" rx="10" fill="#0C1021" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#10B981" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#34D399" font-size="13" text-anchor="middle">🌍</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">PostGIS Geospatial Engine</text>
+      <text x="44" y="38" fill="#34D399" font-size="10.5">Spatial Indexing &amp; Proximity</text>
+      <path d="M 12 48 L 293 48" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• ST_DWithin: Radius queries &lt; 15 km</text>
+      <text x="12" y="82" fill="#CBD5E1" font-size="10.5">• GIST Spatial Indexes on coordinates</text>
+      <text x="12" y="98" fill="#CBD5E1" font-size="10.5">• Multi-City Support (10 Indian Metros)</text>
+      <text x="12" y="114" fill="#CBD5E1" font-size="10.5">• Bengaluru, Mumbai, Delhi, Jaipur, etc.</text>
+      <rect x="12" y="128" width="281" height="30" rx="5" fill="#1E293B"/>
+      <text x="20" y="147" fill="#94A3B8" font-size="10" font-family="monospace">SELECT id FROM shelters WHERE ST_DWithin(...)</text>
+    </g>
+
+    <!-- Column 2: Core Schemas -->
+    <g transform="translate(345, 48)">
+      <rect x="0" y="0" width="315" height="170" rx="10" fill="#0C1021" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#3B82F6" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#60A5FA" font-size="13" text-anchor="middle">🗄️</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">Core Relational Schemas</text>
+      <text x="44" y="38" fill="#60A5FA" font-size="10.5">PostgreSQL Domain Models</text>
+      <path d="M 12 48 L 303 48" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• <tspan fill="#34D399" font-family="monospace">donations</tspan>: Food type, kg, prep time, status</text>
+      <text x="12" y="82" fill="#CBD5E1" font-size="10.5">• <tspan fill="#60A5FA" font-family="monospace">shelters</tspan>: Beneficiaries, capacity, priority</text>
+      <text x="12" y="98" fill="#CBD5E1" font-size="10.5">• <tspan fill="#FBBF24" font-family="monospace">volunteers</tspan>: Vehicle type, payload, state</text>
+      <text x="12" y="114" fill="#CBD5E1" font-size="10.5">• <tspan fill="#C084FC" font-family="monospace">rescue_runs</tspan>: Routes, stops, ORS polyline</text>
+      <rect x="12" y="128" width="291" height="30" rx="5" fill="#1E293B"/>
+      <text x="20" y="147" fill="#94A3B8" font-size="10">Foreign Key Integrity &amp; Cascading Enums</text>
+    </g>
+
+    <!-- Column 3: Row-Level Security & Auth -->
+    <g transform="translate(680, 48)">
+      <rect x="0" y="0" width="305" height="170" rx="10" fill="#0C1021" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#F59E0B" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#FBBF24" font-size="13" text-anchor="middle">🛡️</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">Row-Level Security (RLS)</text>
+      <text x="44" y="38" fill="#FBBF24" font-size="10.5">Role-Based Access Control</text>
+      <path d="M 12 48 L 293 48" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• <tspan fill="#F59E0B">Coordinator Policy</tspan>: Full workspace read/write</text>
+      <text x="12" y="82" fill="#CBD5E1" font-size="10.5">• <tspan fill="#34D399">Donor Policy</tspan>: Manage own surplus records</text>
+      <text x="12" y="98" fill="#CBD5E1" font-size="10.5">• <tspan fill="#38BDF8">Driver Policy</tspan>: View only assigned mission stops</text>
+      <text x="12" y="114" fill="#CBD5E1" font-size="10.5">• <tspan fill="#A78BFA">Shelter Policy</tspan>: Inbound manifest view</text>
+      <rect x="12" y="128" width="281" height="30" rx="5" fill="#1E293B"/>
+      <text x="20" y="147" fill="#94A3B8" font-size="10">Zero Unauthenticated Endpoint Exposure</text>
+    </g>
+
+    <!-- Column 4: Realtime Engine & Audit Ledger -->
+    <g transform="translate(1005, 48)">
+      <rect x="0" y="0" width="295" height="170" rx="10" fill="#0C1021" stroke="#1E293B" stroke-width="1.2"/>
+      <rect x="12" y="12" width="24" height="24" rx="5" fill="#06B6D4" fill-opacity="0.2"/>
+      <text x="24" y="28" fill="#38BDF8" font-size="13" text-anchor="middle">⚡</text>
+      <text x="44" y="24" fill="#F8FAFC" font-size="12.5" font-weight="700">Realtime &amp; Audit Ledger</text>
+      <text x="44" y="38" fill="#38BDF8" font-size="10.5">WebSockets &amp; Immutability</text>
+      <path d="M 12 48 L 283 48" stroke="#1E293B" stroke-width="1"/>
+      <text x="12" y="66" fill="#CBD5E1" font-size="10.5">• Postgres Changes WebSockets to UI</text>
+      <text x="12" y="82" fill="#CBD5E1" font-size="10.5">• Sub-second map vehicle position sync</text>
+      <text x="12" y="98" fill="#CBD5E1" font-size="10.5">• Immutable Handover Audit Table</text>
+      <text x="12" y="114" fill="#CBD5E1" font-size="10.5">• Ecological Metric Triggers (CO₂e &amp; Water)</text>
+      <rect x="12" y="128" width="271" height="30" rx="5" fill="#064E3B" fill-opacity="0.4"/>
+      <text x="20" y="147" fill="#34D399" font-size="10" font-weight="600">✔ FSSAI Audit-Ready Ledger</text>
+    </g>
+  </g>
+
+  <!-- BOTTOM FOOTER / LEGEND -->
+  <g id="FooterLegend" transform="translate(60, 892)">
+    <text x="0" y="0" fill="#64748B" font-size="11">
+      AaharSetu Architecture v2.4 · AMIHACKS 1.0 (Track A) · Live at <tspan fill="#38BDF8">amity-sandy-psi.vercel.app</tspan>
+    </text>
+
+    <g transform="translate(860, -10)">
+      <circle cx="0" cy="5" r="4" fill="#10B981"/>
+      <text x="10" y="9" fill="#94A3B8" font-size="10.5">Core Python Engine</text>
+
+      <circle cx="150" cy="5" r="4" fill="#7C3AED"/>
+      <text x="160" y="9" fill="#94A3B8" font-size="10.5">AI / LLM API</text>
+
+      <circle cx="265" cy="5" r="4" fill="#06B6D4"/>
+      <text x="275" y="9" fill="#94A3B8" font-size="10.5">Spatial &amp; Routing</text>
+
+      <circle cx="395" cy="5" r="4" fill="#3B82F6"/>
+      <text x="405" y="9" fill="#94A3B8" font-size="10.5">Database &amp; RLS</text>
+    </g>
+  </g>
+</svg>
