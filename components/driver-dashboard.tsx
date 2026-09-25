@@ -2,7 +2,7 @@
  * DriverDashboard – role-specific home for volunteer drivers.
  * Shows assigned pickups, available missions to claim, availability status, and quick actions.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import {
   Bike,
   CheckCheck,
@@ -17,6 +17,15 @@ import {
   Route,
   ArrowRight,
   PlusCircle,
+  ExternalLink,
+  ChevronRight,
+  AlertTriangle,
+  Compass,
+  Maximize2,
+  Minimize2,
+  Building2,
+  UtensilsCrossed,
+  LoaderCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -26,6 +35,31 @@ import { apiRequest } from '@/src/api'
 import type { AccountProfile } from '@/src/use-profile'
 import { HandoverDialog } from '@/components/handover-dialog'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { cities } from '@/src/cities'
+
+const RescueMap = lazy(() => import('@/components/rescue-map').then(m => ({ default: m.RescueMap })))
+
+function MapSkeleton() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[380px] bg-card/50 backdrop-blur-sm border border-border/60 rounded-xl p-6 text-center text-muted-foreground animate-pulse">
+      <LoaderCircle className="animate-spin mb-3 text-primary" size={28} />
+      <span className="text-sm font-semibold text-foreground">Loading rescue corridor map…</span>
+      <span className="text-xs text-muted-foreground/75 mt-1">Connecting to geospatial telemetry</span>
+    </div>
+  )
+}
+
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Number((R * c * 1.25).toFixed(1))
+}
 
 interface Props {
   data?: PilotData
@@ -41,6 +75,9 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
   const [claimingId, setClaimingId] = useState<string | null>(null)
   const [handoverDonation, setHandoverDonation] = useState<Donation | null>(null)
   const [optimisticAvailability, setOptimisticAvailability] = useState<boolean | null>(null)
+  const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null)
+  const [expandedMap, setExpandedMap] = useState(false)
+  const [showExploreMap, setShowExploreMap] = useState(false)
 
   // Find the driver profile accurately linked to this user in the pilot data
   const myDriver: Driver | undefined = data?.drivers.find(d =>
@@ -80,6 +117,87 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
   const activeKg = assignedDonations.reduce((acc, d) => acc + (d.qty_kg || 0), 0)
   const capacityKg = myDriver?.capacity_kg || 30
   const freeKg = Math.max(0, capacityKg - activeKg)
+
+  // Automatically select the active route mission (or user selected one)
+  const activeMission = useMemo(() => {
+    if (selectedMissionId) {
+      const found = assignedDonations.find(d => d.id === selectedMissionId)
+      if (found) return found
+    }
+    // Priority: 'picked_up' (currently in transit) first, then earliest safe_until
+    return [...assignedDonations].sort((a, b) => {
+      if (a.status === 'picked_up' && b.status !== 'picked_up') return -1
+      if (b.status === 'picked_up' && a.status !== 'picked_up') return 1
+      return new Date(a.safe_until).getTime() - new Date(b.safe_until).getTime()
+    })[0] || null
+  }, [assignedDonations, selectedMissionId])
+
+  const cityCoords = useMemo(() => {
+    const found = cities.find(c => c.id === cityId)
+    return found ? { latitude: found.latitude, longitude: found.longitude } : { latitude: 12.9716, longitude: 77.598 }
+  }, [cityId])
+
+  const activeMissionDonor = useMemo(() => {
+    if (!activeMission) return null
+    return data?.donors.find(d => d.id === activeMission.donor_id) ?? null
+  }, [activeMission, data?.donors])
+
+  const activeMissionRecipient = useMemo(() => {
+    if (!activeMission) return null
+    if (activeMission.recipient_id) {
+      const match = data?.recipients.find(r => r.id === activeMission.recipient_id)
+      if (match) return match
+    }
+    return data?.recipients.find(r => r.city_id === cityId) ?? data?.recipients[0] ?? null
+  }, [activeMission, data?.recipients, cityId])
+
+  const routeTelemetry = useMemo(() => {
+    if (!activeMission) return null
+
+    const driverLat = myDriver?.latitude ?? cityCoords.latitude
+    const driverLng = myDriver?.longitude ?? cityCoords.longitude
+
+    const donorLat = activeMissionDonor?.latitude ?? (cityCoords.latitude + 0.01)
+    const donorLng = activeMissionDonor?.longitude ?? (cityCoords.longitude + 0.01)
+
+    const recipientLat = activeMissionRecipient?.latitude ?? (cityCoords.latitude - 0.01)
+    const recipientLng = activeMissionRecipient?.longitude ?? (cityCoords.longitude - 0.01)
+
+    const isPickedUp = activeMission.status === 'picked_up'
+
+    const leg1Distance = calculateDistanceKm(driverLat, driverLng, donorLat, donorLng)
+    const leg2Distance = calculateDistanceKm(donorLat, donorLng, recipientLat, recipientLng)
+    const directDeliveryDistance = calculateDistanceKm(driverLat, driverLng, recipientLat, recipientLng)
+
+    const totalRemainingDistance = isPickedUp ? directDeliveryDistance : Number((leg1Distance + leg2Distance).toFixed(1))
+    const estimatedMins = Math.max(5, Math.round((totalRemainingDistance / 20) * 60))
+
+    const safeUntilMs = new Date(activeMission.safe_until).getTime()
+    const remainingSafeMins = Math.max(0, Math.round((safeUntilMs - now) / 60000))
+    const safeBufferMins = remainingSafeMins - estimatedMins
+
+    let navUrl = ''
+    if (isPickedUp) {
+      navUrl = `https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${recipientLat},${recipientLng}&travelmode=two_wheeler`
+    } else {
+      navUrl = `https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${recipientLat},${recipientLng}&waypoints=${donorLat},${donorLng}&travelmode=two_wheeler`
+    }
+
+    return {
+      leg1Distance,
+      leg2Distance,
+      totalRemainingDistance,
+      estimatedMins,
+      remainingSafeMins,
+      safeBufferMins,
+      isPickedUp,
+      navUrl,
+      donorName: activeMissionDonor?.name ?? 'Donor Kitchen',
+      donorArea: activeMissionDonor?.area ?? 'Central Zone',
+      recipientName: activeMissionRecipient?.name ?? 'Community Shelter',
+      recipientArea: activeMissionRecipient?.area ?? 'East Zone',
+    }
+  }, [activeMission, activeMissionDonor, activeMissionRecipient, myDriver, cityCoords, now])
 
   async function toggleAvailability() {
     if (!myDriver) return
@@ -288,6 +406,266 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
         </div>
       </div>
 
+      {/* Active Rescue Corridor & Live Turn-by-Turn Navigation Map */}
+      {assignedDonations.length > 0 && activeMission && routeTelemetry ? (
+        <div className="panel p-5 sm:p-6 rounded-2xl border border-border/80 bg-card space-y-4 shadow-sm">
+          {/* Header & Mission Switcher */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <Route size={18} />
+                </span>
+                <h3 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
+                  Optimal Rescue Corridor
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                </h3>
+                <Badge
+                  variant={routeTelemetry.isPickedUp ? 'default' : 'secondary'}
+                  className={`text-xs ${routeTelemetry.isPickedUp ? 'bg-emerald-600 hover:bg-emerald-600 text-white' : ''}`}
+                >
+                  {routeTelemetry.isPickedUp ? 'Stage 2: Transit to Shelter' : 'Stage 1: Pickup from Donor'}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Live road telemetry optimized for urban couriers with FSSAI thermal safety monitoring.
+              </p>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExpandedMap(prev => !prev)}
+                className="text-xs h-8 gap-1.5"
+                title={expandedMap ? 'Standard view' : 'Expand map height'}
+              >
+                {expandedMap ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                {expandedMap ? 'Collapse' : 'Expand'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Mission Switcher Tabs (if driver has multiple assigned missions) */}
+          {assignedDonations.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              <span className="text-muted-foreground font-medium shrink-0">Switch Active Route:</span>
+              {assignedDonations.map(d => {
+                const isActiveTab = d.id === activeMission.id
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => setSelectedMissionId(d.id)}
+                    className={`px-3 py-1.5 rounded-lg border font-medium transition-all shrink-0 flex items-center gap-1.5 ${
+                      isActiveTab
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                        : 'bg-muted/50 border-border hover:bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    <Bike size={12} />
+                    <span>{d.item}</span>
+                    <span className="opacity-75">({d.qty_kg} kg)</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Embedded Rescue Map with active donation route corridor */}
+          <div className="rounded-xl overflow-hidden border border-border/80 shadow-inner">
+            <Suspense fallback={<MapSkeleton />}>
+              <RescueMap
+                data={data}
+                cityId={cityId}
+                expanded={expandedMap}
+                onExpand={() => setExpandedMap(prev => !prev)}
+                selectedDonationId={activeMission.id}
+              />
+            </Suspense>
+          </div>
+
+          {/* Route Telemetry & Waypoints Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+            {/* Waypoint 1: Donor */}
+            <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+              !routeTelemetry.isPickedUp
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border/60 bg-muted/30 opacity-75'
+            }`}>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <UtensilsCrossed size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {!routeTelemetry.isPickedUp ? 'Current Target: Pickup' : 'Completed: Pickup'}
+                  </span>
+                  {!routeTelemetry.isPickedUp && (
+                    <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
+                      Step 1
+                    </Badge>
+                  )}
+                </div>
+                <h4 className="font-semibold text-sm text-foreground truncate">{routeTelemetry.donorName}</h4>
+                <p className="text-xs text-muted-foreground truncate">{routeTelemetry.donorArea}</p>
+              </div>
+            </div>
+
+            {/* Waypoint 2: Destination Shelter */}
+            <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+              routeTelemetry.isPickedUp
+                ? 'border-emerald-500/50 bg-emerald-500/5'
+                : 'border-border/60 bg-muted/30'
+            }`}>
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                <Building2 size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {routeTelemetry.isPickedUp ? 'Current Target: Delivery' : 'Next: Dropoff'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">
+                    Step 2
+                  </Badge>
+                </div>
+                <h4 className="font-semibold text-sm text-foreground truncate">{routeTelemetry.recipientName}</h4>
+                <p className="text-xs text-muted-foreground truncate">{routeTelemetry.recipientArea}</p>
+              </div>
+            </div>
+
+            {/* Telemetry Metrics & FSSAI Window */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card/60 flex flex-col justify-between gap-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Navigation size={13} className="text-primary" /> Corridor Distance
+                </span>
+                <span className="font-mono font-bold text-foreground">
+                  {routeTelemetry.totalRemainingDistance} km
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Clock size={13} className="text-primary" /> Transit ETA
+                </span>
+                <span className="font-mono font-bold text-foreground">
+                  ~{routeTelemetry.estimatedMins} mins
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  {routeTelemetry.safeBufferMins > 20 ? (
+                    <ShieldCheck size={13} className="text-emerald-500" />
+                  ) : (
+                    <AlertTriangle size={13} className="text-amber-500" />
+                  )}
+                  Thermal Margin
+                </span>
+                <span className={`font-mono text-xs font-semibold ${
+                  routeTelemetry.safeBufferMins > 20
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  +{routeTelemetry.safeBufferMins}m buffer
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Action Toolbar */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border/60">
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Compass size={14} className="text-primary shrink-0" />
+              <span>
+                Navigating for <strong className="text-foreground">{activeMission.item}</strong> ({activeMission.qty_kg} kg)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {routeTelemetry.navUrl && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    toast.info('Launching Google Maps turn-by-turn navigation...')
+                    window.open(routeTelemetry.navUrl, '_blank', 'noopener,noreferrer')
+                  }}
+                  className="h-9 text-xs font-semibold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                >
+                  <Navigation size={14} />
+                  Start Turn-by-Turn GPS
+                  <ExternalLink size={12} className="opacity-80" />
+                </Button>
+              )}
+
+              {!routeTelemetry.isPickedUp ? (
+                <Button
+                  size="sm"
+                  onClick={() => setHandoverDonation(activeMission)}
+                  className="h-9 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+                >
+                  <QrCode size={14} />
+                  Verify Pickup OTP
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setHandoverDonation(activeMission)}
+                  className="h-9 text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <CheckCheck size={14} />
+                  Confirm Delivery OTP
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Standby state - Explore City Rescue Map toggle */
+        <div className="panel p-5 rounded-2xl border border-border/80 bg-card space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Route size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base text-foreground">City Rescue Network Map</h3>
+                <p className="text-xs text-muted-foreground">
+                  Explore active donor kitchens, urgent rescue requests, and recipient shelters across {cityId.toUpperCase()}.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExploreMap(prev => !prev)}
+              className="text-xs gap-1.5 self-start sm:self-auto"
+            >
+              <Compass size={14} />
+              {showExploreMap ? 'Collapse Map' : 'Explore City Map'}
+            </Button>
+          </div>
+
+          {showExploreMap && (
+            <div className="rounded-xl overflow-hidden border border-border/80 shadow-inner">
+              <Suspense fallback={<MapSkeleton />}>
+                <RescueMap
+                  data={data}
+                  cityId={cityId}
+                  expanded={expandedMap}
+                  onExpand={() => setExpandedMap(prev => !prev)}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Assigned rescues */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -338,10 +716,14 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onSelect(d)}
-                      className="text-xs h-8"
+                      onClick={() => {
+                        setSelectedMissionId(d.id)
+                        onSelect(d)
+                      }}
+                      className="text-xs h-8 gap-1.5"
                     >
-                      Inspect Route
+                      <Route size={12} className="text-primary" />
+                      View Corridor
                     </Button>
 
                     {canPickup && (
