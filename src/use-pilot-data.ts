@@ -84,8 +84,8 @@ export function usePilotData(cityId: string) {
       if (isSupabaseConfigured && supabase) {
         try {
           const [donorsRes, recipientsRes, driversRes, donationsRes, dispatchRes, recordsRes] = await Promise.all([
-            supabase.from('donors').select('id, name, area, latitude, longitude, contact, contact_person, phone, license_no, license_verified, is_synthetic, city_id').eq('city_id', cityId),
-            supabase.from('recipients').select('id, name, area, latitude, longitude, capacity_kg, demand_kg, reserved_kg, accepts, accepted_categories, need_level, open_hours, approved, is_open, reliability, city_id, is_synthetic').eq('city_id', cityId),
+            supabase.from('donors').select('id, name, area, latitude, longitude, license_no, license_verified, is_synthetic, city_id').eq('city_id', cityId),
+            supabase.from('recipients').select('id, name, area, latitude, longitude, capacity_kg, reserved_kg, accepts, need_level, approved, is_open, reliability, is_synthetic, city_id').eq('city_id', cityId),
             supabase.from('drivers').select('id, name, latitude, longitude, availability, vehicle, capacity_kg, telegram_id, reliability, city_id, is_synthetic, user_id').eq('city_id', cityId),
             supabase.from('donations').select('id, donor_id, item, category, qty_kg, prepared_at, temp_c, safe_until, status, recipient_id, driver_id, city_id, is_synthetic, created_at').eq('city_id', cityId).order('created_at', { ascending: false }).limit(200),
             supabase.from('dispatch_events').select('id, donation_id, driver_id, event_type, message, city_id, created_at').eq('city_id', cityId).order('created_at', { ascending: false }).limit(100),

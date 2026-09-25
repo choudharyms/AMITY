@@ -19,6 +19,7 @@ import {
   Phone,
   RotateCcw,
   Send,
+  Sparkles,
   ShieldCheck,
   Soup,
   Thermometer,
@@ -30,9 +31,9 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { createDonation } from '@/src/api'
+import { createDonation, parseDonationMessage, type DonationMessageParse } from '@/src/api'
 import { addLocalDonation } from '@/src/seed'
-import type { Category, PilotData } from '@/src/types'
+import { categoryLabels, type Category, type PilotData } from '@/src/types'
 import type { AccountProfile } from '@/src/use-profile'
 import { cities } from '@/src/cities'
 
@@ -57,6 +58,8 @@ interface FormErrors {
   phoneNumber?: string
 }
 
+type EntryFormat = 'standard' | 'nlp'
+
 function toLocalIsoString(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -75,6 +78,9 @@ export function PostDonationView({
   // Form fields state
   // Section 1: Basic Information
   const [foodTitle, setFoodTitle] = useState('')
+  const [entryFormat, setEntryFormat] = useState<EntryFormat>('standard')
+  const [nlpMessage, setNlpMessage] = useState('')
+  const [nlpPreview, setNlpPreview] = useState<DonationMessageParse | null>(null)
   const [foodType, setFoodType] = useState('Cooked food')
   const [quantity, setQuantity] = useState('')
   const [mealType, setMealType] = useState('Lunch')
@@ -211,22 +217,24 @@ export function PostDonationView({
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!foodTitle.trim()) {
-      newErrors.title = 'Food title is required'
-    } else if (foodTitle.trim().length < 3) {
-      newErrors.title = 'Food title must be at least 3 characters'
-    }
+    if (entryFormat === 'standard') {
+      if (!foodTitle.trim()) {
+        newErrors.title = 'Food title is required'
+      } else if (foodTitle.trim().length < 3) {
+        newErrors.title = 'Food title must be at least 3 characters'
+      }
 
-    if (!foodType) {
-      newErrors.foodType = 'Please select a food type'
-    }
+      if (!foodType) {
+        newErrors.foodType = 'Please select a food type'
+      }
 
-    if (!quantity.trim()) {
-      newErrors.quantity = 'Quantity is required (e.g. 20 meals, 5 kg)'
-    }
+      if (!quantity.trim()) {
+        newErrors.quantity = 'Quantity is required (e.g. 20 meals, 5 kg)'
+      }
 
-    if (!mealType) {
-      newErrors.mealType = 'Please select a meal type'
+      if (!mealType) {
+        newErrors.mealType = 'Please select a meal type'
+      }
     }
 
     if (!pickupAddress.trim()) {
@@ -263,6 +271,26 @@ export function PostDonationView({
     if (e) e.preventDefault()
     setSubmitError(null)
 
+    if (entryFormat === 'nlp' && !nlpPreview) {
+      if (!nlpMessage.trim()) {
+        setSubmitError('Describe the surplus food before analyzing it.')
+        return
+      }
+      setIsSubmitting(true)
+      try {
+        const parsed = await parseDonationMessage(nlpMessage.trim())
+        setNlpPreview(parsed)
+        toast.success('Donation details extracted. Review them before submitting.')
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Could not analyze the donation message.'
+        setSubmitError(errorMsg)
+        toast.error(errorMsg)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
     if (!validateForm()) {
       toast.error('Please fix the highlighted errors before submitting.')
       return
@@ -277,7 +305,14 @@ export function PostDonationView({
       donorList[0]
     const activeDonorId = matchingDonor?.id || 'donor-saravana'
 
-    const fullItemTitle = `${foodTitle.trim()} (${quantity.trim()})`
+    const donationItem = nlpPreview?.item ?? `${foodTitle.trim()} (${quantity.trim()})`
+    const donationQuantityKg = nlpPreview?.qty_kg ?? parsedKg
+    const donationCategory = nlpPreview?.category ?? mappedCategory
+    const donationTemperature = nlpPreview
+      ? nlpPreview.temp_c
+      : storageCondition === 'Frozen' ? -18 : storageCondition === 'Refrigerated' ? 4 : 68
+    const preparedTimestamp = nlpPreview?.prepared_at_iso ?? new Date(availableFrom).toISOString()
+    const safeUntilTimestamp = nlpPreview?.safe_until_iso ?? new Date(availableUntil).toISOString()
     const extraDetails = {
       mealType,
       foodType,
@@ -291,6 +326,8 @@ export function PostDonationView({
       contactName: contactName.trim(),
       phoneNumber: phoneNumber.trim(),
       alternateNumber: alternateNumber.trim() || undefined,
+      nlpMessage: nlpPreview ? nlpMessage.trim() : undefined,
+      nlpNotes: nlpPreview?.notes,
     }
 
     let createdId = `d-${Math.random().toString(36).slice(2, 9)}`
@@ -301,11 +338,11 @@ export function PostDonationView({
         const response = await createDonation({
           city_id: cityId,
           donor_id: activeDonorId,
-          item: fullItemTitle,
-          category: mappedCategory,
-          qty_kg: parsedKg,
-          prepared_at: new Date(availableFrom).toISOString(),
-          temp_c: storageCondition === 'Frozen' ? -18 : storageCondition === 'Refrigerated' ? 4 : 68,
+          item: donationItem,
+          category: donationCategory,
+          qty_kg: donationQuantityKg,
+          prepared_at: preparedTimestamp,
+          temp_c: donationTemperature,
           source_text: JSON.stringify(extraDetails),
         })
         if (response?.id) createdId = response.id
@@ -318,12 +355,12 @@ export function PostDonationView({
               id: createdId,
               city_id: cityId,
               donor_id: activeDonorId,
-              item: fullItemTitle,
-              category: mappedCategory,
-              qty_kg: parsedKg,
-              prepared_at: new Date(availableFrom).toISOString(),
-              safe_until: new Date(availableUntil).toISOString(),
-              temp_c: storageCondition === 'Frozen' ? -18 : storageCondition === 'Refrigerated' ? 4 : 68,
+              item: donationItem,
+              category: donationCategory,
+              qty_kg: donationQuantityKg,
+              prepared_at: preparedTimestamp,
+              safe_until: safeUntilTimestamp,
+              temp_c: donationTemperature,
               status: 'posted',
               raw_text: JSON.stringify(extraDetails),
               is_synthetic: false,
@@ -338,12 +375,12 @@ export function PostDonationView({
           addLocalDonation({
             city_id: cityId,
             donor_id: activeDonorId,
-            item: fullItemTitle,
-            category: mappedCategory,
-            qty_kg: parsedKg,
-            prepared_at: new Date(availableFrom).toISOString(),
-            safe_until: new Date(availableUntil).toISOString(),
-            temp_c: storageCondition === 'Frozen' ? -18 : storageCondition === 'Refrigerated' ? 4 : 68,
+            item: donationItem,
+            category: donationCategory,
+            qty_kg: donationQuantityKg,
+            prepared_at: preparedTimestamp,
+            safe_until: safeUntilTimestamp,
+            temp_c: donationTemperature,
             status: 'posted',
             recipient_id: null,
             driver_id: null,
@@ -357,12 +394,12 @@ export function PostDonationView({
 
       setPostedDonationSummary({
         id: createdId,
-        title: foodTitle.trim(),
-        quantity: quantity.trim(),
-        category: foodType,
+        title: nlpPreview?.item ?? foodTitle.trim(),
+        quantity: nlpPreview ? `${nlpPreview.qty_kg} kg` : quantity.trim(),
+        category: nlpPreview?.category ?? foodType,
         address: `${pickupAddress}${areaLandmark ? `, ${areaLandmark}` : ''}`,
         contactName: contactName.trim(),
-        safeUntil: new Date(availableUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        safeUntil: new Date(safeUntilTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       })
     } catch (err: any) {
       console.error('Submission error:', err)
@@ -474,6 +511,23 @@ export function PostDonationView({
         </p>
       </div>
 
+      <div className="mb-5 max-w-xl rounded-xl border border-[#dce5d8] bg-white p-1.5 shadow-sm" aria-label="Donation entry format">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            aria-pressed={entryFormat === 'standard'}
+            onClick={() => { setEntryFormat('standard'); setNlpPreview(null); setSubmitError(null) }}
+            className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${entryFormat === 'standard' ? 'bg-[#1b432a] text-white shadow-sm' : 'text-[#536354] hover:bg-[#f2f6ee]'}`}
+          >Standard form</button>
+          <button
+            type="button"
+            aria-pressed={entryFormat === 'nlp'}
+            onClick={() => { setEntryFormat('nlp'); setNlpPreview(null); setSubmitError(null) }}
+            className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${entryFormat === 'nlp' ? 'bg-[#1b432a] text-white shadow-sm' : 'text-[#536354] hover:bg-[#f2f6ee]'}`}
+          ><Sparkles size={15} /> NLP submission</button>
+        </div>
+      </div>
+
       {submitError && (
         <div className="error-alert-banner">
           <AlertCircle size={18} className="text-[#b95233] shrink-0" />
@@ -496,8 +550,7 @@ export function PostDonationView({
       <div className="post-donation-grid">
         {/* Left Column: Form Sections */}
         <form onSubmit={handleSubmit} noValidate className="form-sections-column">
-          {/* SECTION 1: BASIC INFORMATION */}
-          <div className="donation-card-section">
+          {entryFormat === 'standard' ? <div className="donation-card-section">
             <div className="section-header-row">
               <span className="section-number-bubble">1</span>
               <div>
@@ -636,7 +689,39 @@ export function PostDonationView({
                 </div>
               </div>
             </div>
-          </div>
+          </div> : <div className="donation-card-section">
+            <div className="section-header-row">
+              <span className="section-number-bubble">1</span>
+              <div>
+                <h2 className="section-title">Describe your donation</h2>
+                <p className="section-subtitle">We’ll extract the food details so you can review them.</p>
+              </div>
+            </div>
+            <div className="section-fields-stack">
+              <div className="form-field-group">
+                <label htmlFor="nlp-donation-message" className="form-field-label">Donation message</label>
+                <textarea
+                  id="nlp-donation-message"
+                  rows={4}
+                  maxLength={2000}
+                  className="form-textarea"
+                  placeholder="e.g. 40 plates veg biryani ready now, hot, around 18 kg"
+                  value={nlpMessage}
+                  onChange={event => { setNlpMessage(event.target.value); setNlpPreview(null); setSubmitError(null) }}
+                />
+                <p className="text-xs text-muted-foreground">Write naturally in English, Hindi, or Hinglish. Include quantity, food type, and when it was prepared.</p>
+              </div>
+              {nlpPreview && <div className="rounded-xl border border-[#c9ddca] bg-[#f2f8f0] p-4 text-sm text-[#263b2b]">
+                <div className="mb-2 flex items-center gap-2 font-semibold"><CheckCircle2 size={17} className="text-[#28723b]" /> Review extracted details</div>
+                <p><strong>{nlpPreview.item}</strong> · {categoryLabels[nlpPreview.category]} · {nlpPreview.qty_kg} kg</p>
+                <p>Temperature: {nlpPreview.temp_c === null ? 'Ambient / not specified' : `${nlpPreview.temp_c}°C`}</p>
+                <p>Prepared: {new Date(nlpPreview.prepared_at_iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST</p>
+                <p>Estimated safe window: {nlpPreview.window_hours} hours · consume by {new Date(nlpPreview.safe_until_iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' })} IST</p>
+                <p className="mt-2 text-xs text-[#627264]">{nlpPreview.notes}</p>
+                <p className="mt-2 text-xs font-medium">Review these details, then confirm below. Pickup location and contact details are entered in the next sections.</p>
+              </div>}
+            </div>
+          </div>}
 
           {/* SECTION 2: LOCATION & TIMING */}
           <div className="donation-card-section">
@@ -926,14 +1011,18 @@ export function PostDonationView({
           <div className="mobile-cta-wrapper">
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (entryFormat === 'nlp' && !nlpMessage.trim())}
               className="submit-donation-btn"
             >
               {isSubmitting ? (
                 <>
                   <LoaderCircle size={18} className="animate-spin mr-2" />
-                  Submitting donation...
+                  {entryFormat === 'nlp' && !nlpPreview ? 'Analyzing message…' : 'Submitting donation…'}
                 </>
+              ) : entryFormat === 'nlp' && !nlpPreview ? (
+                <><Sparkles size={16} className="mr-2" />Analyze & review donation</>
+              ) : entryFormat === 'nlp' ? (
+                <><Check size={16} className="mr-2" />Confirm and post donation</>
               ) : (
                 <>
                   <Send size={16} className="mr-2" />
@@ -1041,14 +1130,18 @@ export function PostDonationView({
             <Button
               type="button"
               onClick={() => handleSubmit()}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (entryFormat === 'nlp' && !nlpMessage.trim())}
               className="submit-donation-btn"
             >
               {isSubmitting ? (
                 <>
                   <LoaderCircle size={18} className="animate-spin mr-2" />
-                  Submitting donation...
+                  {entryFormat === 'nlp' && !nlpPreview ? 'Analyzing message…' : 'Submitting donation…'}
                 </>
+              ) : entryFormat === 'nlp' && !nlpPreview ? (
+                <><Sparkles size={16} className="mr-2" />Analyze & review donation</>
+              ) : entryFormat === 'nlp' ? (
+                <><Check size={16} className="mr-2" />Confirm and post donation</>
               ) : (
                 <>
                   <Send size={16} className="mr-2" />
