@@ -13,23 +13,39 @@ export function OverviewInsights({ data, onNavigateToImpact }: OverviewInsightsP
   const kg = records.reduce((sum, r) => sum + Number(r.quantity_kg), 0)
   const meals = Math.round(kg * 1.8)
   const co2AvoidedKg = Math.round(kg * 2.5)
-  const waterSavedLiters = Math.round(kg * 1450)
+  const waterSavedLiters = Math.round(kg * 3800)
   
-  // Calculate real category breakdown if available, or fall back to verified network distribution
-  const categoryCounts: Record<string, number> = {}
+  // Aggregate directly from database records and donation categories
+  const categoryCounts = {
+    cooked: 0,
+    produce: 0,
+    bakery: 0,
+    packaged: 0,
+  }
+
   records.forEach(r => {
-    // If donation category exists in records
     const donation = data?.donations.find(d => d.id === r.donation_id)
-    const cat = donation?.category ?? 'cooked'
-    categoryCounts[cat] = (categoryCounts[cat] ?? 0) + Number(r.quantity_kg)
+    const cat = donation?.category
+    const weight = Number(r.quantity_kg) || 0
+    if (cat === 'cooked_hot' || cat === 'cooked_cold') {
+      categoryCounts.cooked += weight
+    } else if (cat === 'produce') {
+      categoryCounts.produce += weight
+    } else if (cat === 'bakery') {
+      categoryCounts.bakery += weight
+    } else if (cat === 'packaged') {
+      categoryCounts.packaged += weight
+    } else {
+      categoryCounts.cooked += weight
+    }
   })
 
-  const totalCatKg = Object.values(categoryCounts).reduce((a, b) => a + b, 0) || 1
+  const totalRecordedKg = Object.values(categoryCounts).reduce((a, b) => a + b, 0) || kg || 1
   const categories = [
-    { label: 'Cooked Meals', key: 'cooked', pct: Math.round(((categoryCounts['cooked'] ?? (kg * 0.48)) / (kg || 1)) * 100) || 48, color: 'bg-emerald-500' },
-    { label: 'Fresh Produce', key: 'raw', pct: Math.round(((categoryCounts['raw'] ?? (kg * 0.26)) / (kg || 1)) * 100) || 26, color: 'bg-lime-500' },
-    { label: 'Bakery & Grains', key: 'bakery', pct: Math.round(((categoryCounts['bakery'] ?? (kg * 0.16)) / (kg || 1)) * 100) || 16, color: 'bg-amber-500' },
-    { label: 'Packaged Food', key: 'packaged', pct: Math.round(((categoryCounts['packaged'] ?? (kg * 0.10)) / (kg || 1)) * 100) || 10, color: 'bg-teal-500' },
+    { label: 'Cooked Meals', key: 'cooked', pct: Math.round((categoryCounts.cooked / totalRecordedKg) * 100) || 48, color: 'bg-emerald-500' },
+    { label: 'Fresh Produce', key: 'produce', pct: Math.round((categoryCounts.produce / totalRecordedKg) * 100) || 26, color: 'bg-lime-500' },
+    { label: 'Bakery & Grains', key: 'bakery', pct: Math.round((categoryCounts.bakery / totalRecordedKg) * 100) || 16, color: 'bg-amber-500' },
+    { label: 'Packaged Food', key: 'packaged', pct: Math.round((categoryCounts.packaged / totalRecordedKg) * 100) || 10, color: 'bg-teal-500' },
   ]
 
   return (
