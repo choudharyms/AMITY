@@ -56,17 +56,20 @@ export function RecipientDialog({
   onViewDispatch,
   onSelectDonation,
 }: RecipientDialogProps) {
+  const recipientId = recipient?.id
+
+  // Unconditionally call hooks at the top level to adhere to Rules of Hooks
+  const recipientDonations = useMemo(() => {
+    if (!recipientId || !data?.donations) return []
+    return data.donations.filter(d => d.recipient_id === recipientId)
+  }, [data?.donations, recipientId])
+
   if (!recipient) return null
 
   const city = cities.find(c => c.id === (recipient.city_id || cityId)) ?? cities[0]
   const accepts = parseAccepts(recipient.accepts)
   const availableKg = Math.max(0, recipient.capacity_kg - recipient.reserved_kg)
   const capacityPct = recipient.capacity_kg > 0 ? Math.round((recipient.reserved_kg / recipient.capacity_kg) * 100) : 0
-
-  // Filter donations directed or delivered to this recipient
-  const recipientDonations = useMemo(() => {
-    return data?.donations.filter(d => d.recipient_id === recipient.id) ?? []
-  }, [data?.donations, recipient.id])
 
   const incomingDonations = recipientDonations.filter(d =>
     ['matched', 'accepted', 'picked_up'].includes(d.status)

@@ -56,28 +56,32 @@ export function DriverDialog({
   onViewDispatch,
   onSelectDonation,
 }: DriverDialogProps) {
+  const driverId = driver?.id
+
+  // Unconditionally call hooks at the top level to adhere to Rules of Hooks
+  const assignedDonations = useMemo(() => {
+    if (!driverId || !data?.donations) return []
+    return data.donations.filter(
+      d => d.driver_id === driverId && !['delivered', 'expired', 'cancelled'].includes(d.status)
+    )
+  }, [data?.donations, driverId])
+
+  const completedDonations = useMemo(() => {
+    if (!driverId || !data?.donations) return []
+    return data.donations.filter(
+      d => d.driver_id === driverId && d.status === 'delivered'
+    )
+  }, [data?.donations, driverId])
+
   if (!driver) return null
 
   const city = cities.find(c => c.id === (driver.city_id || cityId)) ?? cities[0]
 
-  const vehicleLower = driver.vehicle.toLowerCase()
+  const vehicleLower = (driver.vehicle || '').toLowerCase()
   const isBike = vehicleLower.includes('bike') || vehicleLower.includes('scooter') || vehicleLower.includes('cycle') || vehicleLower.includes('2-wheeler')
   const isVanOrTruck = vehicleLower.includes('van') || vehicleLower.includes('truck') || vehicleLower.includes('tata') || vehicleLower.includes('tempo') || vehicleLower.includes('lorry')
   const VehicleIcon = isBike ? Bike : isVanOrTruck ? Truck : Car
   const vehicleCategoryLabel = isBike ? 'Two-Wheeler Express' : isVanOrTruck ? 'Commercial Cargo' : 'Utility Four-Wheeler'
-
-  // Filter donations assigned to this driver
-  const assignedDonations = useMemo(() => {
-    return data?.donations.filter(
-      d => d.driver_id === driver.id && !['delivered', 'expired', 'cancelled'].includes(d.status)
-    ) ?? []
-  }, [data?.donations, driver.id])
-
-  const completedDonations = useMemo(() => {
-    return data?.donations.filter(
-      d => d.driver_id === driver.id && d.status === 'delivered'
-    ) ?? []
-  }, [data?.donations, driver.id])
 
   const activeKg = assignedDonations.reduce((acc, d) => acc + (d.qty_kg || 0), 0)
   const remainingCapacityKg = Math.max(0, driver.capacity_kg - activeKg)

@@ -409,7 +409,7 @@ export default function Landing({
             </svg>
             <div className="nav-brand-text">
               <span className="nav-brand-name">AaharSetu</span>
-              <span className="nav-brand-sub">Bengaluru Rescue Network</span>
+              <span className="nav-brand-sub">Food Rescue Network</span>
             </div>
           </div>
         </div>

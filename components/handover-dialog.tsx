@@ -85,18 +85,6 @@ export function HandoverDialog({ donation, stage, cityId, data, onClose, onSucce
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const isStoppingRef = useRef(false)
 
-  if (!donation || !stage) return null
-
-  const activeDonation = donation
-  const activeStage = stage
-  const donor = data?.donors.find(d => d.id === activeDonation.donor_id)
-  const recipient = data?.recipients.find(r => r.id === activeDonation.recipient_id)
-  const assignedName = activeStage === 'pickup' ? donor?.name ?? 'the donor' : recipient?.name ?? 'the recipient'
-  const batchId = `AS-BLR-${activeDonation.id.slice(0, 8).toUpperCase()}`
-
-  const expectedOtp = generateHandoverOtp(activeDonation.id, activeStage)
-  const qrPayload = generateHandoverPayload(activeDonation, activeStage, batchId)
-
   // Stop camera helper
   async function stopCamera() {
     if (scannerRef.current && isScanning && !isStoppingRef.current) {
@@ -113,11 +101,31 @@ export function HandoverDialog({ donation, stage, cityId, data, onClose, onSucce
     }
   }
 
-  // Camera scanner lifecycle
+  // Handle scanned QR payload
+  async function handleScannedText(decodedText: string) {
+    if (!donation) return
+    const parsed = parseHandoverScan(decodedText)
+    if (!parsed) {
+      toast.error('Unrecognized QR format. Please scan an AaharSetu pass.')
+      return
+    }
+
+    // Check donation ID match if provided in payload
+    if (parsed.donationId && parsed.donationId !== donation.id) {
+      toast.warning(`Scanned QR belongs to another donation (${parsed.donationId}).`)
+      return
+    }
+
+    playSuccessChime()
+    toast.success('QR Code verified successfully!')
+    await executeVerification(parsed.code)
+  }
+
+  // Camera scanner lifecycle declared unconditionally at top level
   useEffect(() => {
     let mounted = true
 
-    if (activeTab === 'scan' && !verified) {
+    if (donation && stage && activeTab === 'scan' && !verified) {
       setCameraError(null)
 
       const timer = window.setTimeout(async () => {
@@ -179,26 +187,19 @@ export function HandoverDialog({ donation, stage, cityId, data, onClose, onSucce
     } else {
       void stopCamera()
     }
-  }, [activeTab, verified])
+  }, [donation, stage, activeTab, verified])
 
-  // Handle scanned QR payload
-  async function handleScannedText(decodedText: string) {
-    const parsed = parseHandoverScan(decodedText)
-    if (!parsed) {
-      toast.error('Unrecognized QR format. Please scan an AaharSetu pass.')
-      return
-    }
+  if (!donation || !stage) return null
 
-    // Check donation ID match if provided in payload
-    if (parsed.donationId && parsed.donationId !== activeDonation.id) {
-      toast.warning(`Scanned QR belongs to another donation (${parsed.donationId}).`)
-      return
-    }
+  const activeDonation = donation
+  const activeStage = stage
+  const donor = data?.donors.find(d => d.id === activeDonation.donor_id)
+  const recipient = data?.recipients.find(r => r.id === activeDonation.recipient_id)
+  const assignedName = activeStage === 'pickup' ? donor?.name ?? 'the donor' : recipient?.name ?? 'the recipient'
+  const batchId = `AS-BLR-${activeDonation.id.slice(0, 8).toUpperCase()}`
 
-    playSuccessChime()
-    toast.success('QR Code verified successfully!')
-    await executeVerification(parsed.code)
-  }
+  const expectedOtp = generateHandoverOtp(activeDonation.id, activeStage)
+  const qrPayload = generateHandoverPayload(activeDonation, activeStage, batchId)
 
   // Handle image file upload fallback
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
