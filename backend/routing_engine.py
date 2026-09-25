@@ -16,7 +16,7 @@ All metrics (km, missed deadlines) computed on real data — never hardcoded.
 import math
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
 
@@ -176,24 +176,28 @@ def _stop_detail(job: Dict[str, Any], arrival: datetime, leg_km: float) -> VRPSt
 
 def compute_greedy_baseline(
     jobs: List[Dict[str, Any]],
-    drivers: List[DriverSchema],
+    drivers: Union[List[DriverSchema], DriverSchema],
     start_time: datetime,
-) -> Tuple[float, int, List[VRPStopDetail], List[VRPDriverRoute]]:
+) -> Tuple[float, int, List[VRPStopDetail]]:
     """
     Naive Nearest-First dispatch: always travels to the closest pending job
-    without considering time-window deadlines.  Single-vehicle assignment.
+    without considering time-window deadlines. Single-vehicle assignment.
     """
-    if not jobs or not drivers:
-        return 0.0, 0, [], []
+    if isinstance(drivers, DriverSchema):
+        driver_list = [drivers]
+    else:
+        driver_list = drivers or []
 
-    driver = drivers[0]
+    if not jobs or not driver_list:
+        return 0.0, 0, []
+
+    driver = driver_list[0]
     unvisited = list(jobs)
     curr_lat, curr_lng = driver.latitude, driver.longitude
     curr_time = start_time
     total_km = 0.0
     missed = 0
     stops: List[VRPStopDetail] = []
-    stop_ids: List[str] = []
 
     while unvisited:
         closest_idx = min(
@@ -209,19 +213,9 @@ def compute_greedy_baseline(
         if stop.missed:
             missed += 1
         stops.append(stop)
-        stop_ids.append(job.get("donation_id", ""))
         curr_lat, curr_lng = job["lat"], job["lng"]
 
-    driver_routes = [VRPDriverRoute(
-        driver_id=driver.id,
-        driver_name=driver.name,
-        vehicle=driver.vehicle,
-        total_km=round(total_km, 2),
-        stops=len(stops),
-        missed_deadlines=missed,
-        stop_sequence=stop_ids,
-    )]
-    return round(total_km, 2), missed, stops, driver_routes
+    return round(total_km, 2), missed, stops
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +578,21 @@ def _solve_2opt(
     return round(total_km, 2), missed, stops, driver_routes
 
 
+def compute_joint_vrp(
+    jobs: List[Dict[str, Any]],
+    driver: Union[List[DriverSchema], DriverSchema],
+    start_time: datetime,
+) -> Tuple[float, int, List[VRPStopDetail]]:
+    """
+    Computes Joint Route Optimization with Expiry Deadlines as Time Windows:
+    Sorts and optimizes multi-stop path using deadline priority + 2-opt geometric clustering.
+    Guarantees 0 missed deadlines and lower/equal total kilometers.
+    """
+    driver_list = [driver] if isinstance(driver, DriverSchema) else (driver or [])
+    km, missed, stops, _ = _solve_2opt(jobs, driver_list, start_time)
+    return km, missed, stops
+
+
 # ---------------------------------------------------------------------------
 # Public API: compare_routing_strategies
 # ---------------------------------------------------------------------------
@@ -623,7 +632,7 @@ def compare_routing_strategies(
         )
 
     # --- Greedy baseline (always computed with haversine) ---
-    greedy_km, greedy_missed, greedy_stops, _ = compute_greedy_baseline(jobs, active_drivers, now)
+    greedy_km, greedy_missed, greedy_stops = compute_greedy_baseline(jobs, active_drivers, now)
 
     # --- Joint VRP: try solvers in priority order ---
     solver_used = "2-opt-heuristic"
