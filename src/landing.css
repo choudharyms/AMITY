@@ -318,6 +318,13 @@
   padding: 0 12%;
 }
 
+.chapter-bottom-left {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 45%;
+  padding-bottom: 72px;
+}
+
 /* ─── Glassmorphism chapter card ─── */
 .chapter-glass {
   background: rgba(4, 10, 7, 0.55);
@@ -333,7 +340,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.chapter-left .chapter-glass {
+.chapter-left .chapter-glass,
+.chapter-bottom-left .chapter-glass {
   text-align: left;
 }
 
@@ -647,10 +655,16 @@
   }
 
   .chapter-left,
-  .chapter-right {
+  .chapter-right,
+  .chapter-bottom-left {
     align-items: flex-start;
     padding-left: 20px;
     padding-right: 20px;
+  }
+
+  .chapter-bottom-left {
+    justify-content: flex-end;
+    padding-bottom: 40px;
   }
 
   .chapter-center {

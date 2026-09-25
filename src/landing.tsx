@@ -18,7 +18,7 @@ interface Chapter {
   subtitle: string
   startFrame: number
   endFrame: number
-  align: 'left' | 'right' | 'center'
+  align: 'left' | 'right' | 'center' | 'bottom-left'
 }
 
 const chapters: Chapter[] = [
@@ -52,7 +52,7 @@ const chapters: Chapter[] = [
     subtitle: 'Joint multi-vehicle dispatch with expiry deadlines as hard time windows (VROOM via ORS & Google OR-Tools). Live before/after shows road km saved with zero spoiled meals.',
     startFrame: 148,
     endFrame: 190,
-    align: 'center',
+    align: 'bottom-left',
   },
   {
     label: 'DRIVER',
