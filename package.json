@@ -10,7 +10,8 @@
     "dev:all": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run backend\" \"npm run dev\"",
     "build": "tsc --noEmit && vite build",
     "start": "vite preview --host 0.0.0.0 --port 3000",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "seed": "node --env-file=.env --experimental-strip-types scripts/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
