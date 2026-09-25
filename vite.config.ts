@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
     })],
     resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
     optimizeDeps: {
-      include: ['maplibre-gl', 'react-map-gl/maplibre'],
+      include: ['maplibre-gl', 'react-map-gl/maplibre', 'recharts'],
     },
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL ?? env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
