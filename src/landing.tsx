@@ -490,10 +490,10 @@ export default function Landing({
               <button className="cta-secondary-btn" onClick={onLogin ?? onEnter}>
                 <span>Sign In to Account</span>
               </button>
-              <button className="nav-link-btn" onClick={onEnter} style={{ fontSize: '13px' }}>
-                Explore Dashboard Directly →
-              </button>
             </div>
+            <button className="nav-link-btn cta-explore-btn" onClick={onEnter}>
+              Explore Dashboard Directly →
+            </button>
           </div>
         </div>
       </div>

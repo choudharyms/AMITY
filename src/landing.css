@@ -501,6 +501,7 @@
   align-items: center;
   gap: 12px;
   text-align: center;
+  width: 100%;
 }
 
 .cta-headline {
@@ -542,7 +543,7 @@
     0 0 28px rgba(34, 197, 94, 0.25),
     0 4px 20px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  margin-top: 4px;
+  margin: 0;
   animation: gradient-shift 4s ease infinite;
 }
 
@@ -765,9 +766,11 @@
 .cta-actions-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
-  margin-top: 14px;
+  justify-content: center;
+  width: 100%;
+  margin-top: 18px;
 }
 
 .cta-secondary-btn {
@@ -776,21 +779,54 @@
   gap: 8px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   color: #f0fdf4;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(134, 239, 172, 0.25);
-  padding: 13px 24px;
+  padding: 13px 28px;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
+  margin: 0;
 }
 
 .cta-secondary-btn:hover {
   background: rgba(34, 197, 94, 0.15);
   border-color: rgba(134, 239, 172, 0.45);
   color: #86efac;
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.cta-explore-btn {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(240, 253, 244, 0.65);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.cta-explore-btn:hover {
+  color: #86efac;
+  transform: translateX(2px);
+}
+
+@media (max-width: 640px) {
+  .cta-actions-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .cta-button,
+  .cta-secondary-btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
 }
 
