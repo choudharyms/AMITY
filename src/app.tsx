@@ -344,7 +344,7 @@ export default function App({
   const isDonor = role === 'donor'
   const isDriver = role === 'driver'
   const isRecipient = role === 'recipient' || role === 'shelter'
-  const canPost = source === 'supabase' && isDonor
+  const canPost = source === 'supabase' && (isDonor || isCoordinator)
   const showOnboarding = session && profile && isProfileIncomplete(profile) && !onboardingDismissed
 
   // Role-adaptive overview: coordinators see the full ops view, others see their role dashboard

@@ -384,6 +384,8 @@ DROP POLICY IF EXISTS "Assigned recipient confirms delivery" ON donations;
 DROP POLICY IF EXISTS "donations_select_anon" ON donations;
 DROP POLICY IF EXISTS "donations_select_authenticated" ON donations;
 DROP POLICY IF EXISTS "donations_insert_authenticated" ON donations;
+DROP POLICY IF EXISTS "donations_insert_dedicated_roles" ON donations;
+DROP POLICY IF EXISTS "donations_update_dedicated_roles" ON donations;
 DROP POLICY IF EXISTS "donations_update_coordinator" ON donations;
 DROP POLICY IF EXISTS "donations_update_donor" ON donations;
 DROP POLICY IF EXISTS "donations_update_driver" ON donations;
@@ -573,38 +575,62 @@ CREATE POLICY "donations_select_authenticated" ON donations
         )
     );
 
-CREATE POLICY "donations_insert_authenticated" ON donations
+CREATE POLICY "donations_insert_dedicated_roles" ON donations
     FOR INSERT TO authenticated
     WITH CHECK (
-        private.is_coordinator(city_id)
-        OR (
+        -- Coordinators have full authority to log/intake donations
+        EXISTS (
+            SELECT 1 FROM profiles p
+            WHERE p.user_id = (SELECT auth.uid())
+              AND (p.role = 'coordinator' OR p.requested_role = 'coordinator')
+        )
+        OR
+        -- Dedicated donors can post new donations
+        (
             status = 'posted'
             AND (
-                donor_id IN (SELECT d.id FROM donors d WHERE d.user_id = (SELECT auth.uid()))
-                OR EXISTS (
+                EXISTS (
                     SELECT 1 FROM profiles p
                     WHERE p.user_id = (SELECT auth.uid())
-                      AND p.city_id = donations.city_id
-                      AND p.role = 'donor'
+                      AND (p.role = 'donor' OR p.requested_role = 'donor')
+                )
+                OR
+                EXISTS (
+                    SELECT 1 FROM donors d
+                    WHERE d.id = donations.donor_id
+                      AND d.user_id = (SELECT auth.uid())
                 )
             )
         )
     );
 
-CREATE POLICY "donations_update_coordinator" ON donations
-    FOR UPDATE TO authenticated
-    USING (private.is_coordinator(city_id))
-    WITH CHECK (private.is_coordinator(city_id));
-
-CREATE POLICY "donations_update_donor" ON donations
+CREATE POLICY "donations_update_dedicated_roles" ON donations
     FOR UPDATE TO authenticated
     USING (
-        donor_id IN (SELECT d.id FROM donors d WHERE d.user_id = (SELECT auth.uid()))
-        AND status IN ('posted', 'matched')
+        EXISTS (
+            SELECT 1 FROM profiles p
+            WHERE p.user_id = (SELECT auth.uid())
+              AND p.role = ANY (ARRAY['coordinator'::text, 'driver'::text, 'recipient'::text, 'shelter'::text, 'donor'::text])
+        )
+        OR
+        EXISTS (
+            SELECT 1 FROM donors d
+            WHERE d.id = donations.donor_id
+              AND d.user_id = (SELECT auth.uid())
+        )
     )
     WITH CHECK (
-        donor_id IN (SELECT d.id FROM donors d WHERE d.user_id = (SELECT auth.uid()))
-        AND status IN ('posted', 'matched', 'cancelled')
+        EXISTS (
+            SELECT 1 FROM profiles p
+            WHERE p.user_id = (SELECT auth.uid())
+              AND p.role = ANY (ARRAY['coordinator'::text, 'driver'::text, 'recipient'::text, 'shelter'::text, 'donor'::text])
+        )
+        OR
+        EXISTS (
+            SELECT 1 FROM donors d
+            WHERE d.id = donations.donor_id
+              AND d.user_id = (SELECT auth.uid())
+        )
     );
 
 CREATE POLICY "donations_update_driver" ON donations
