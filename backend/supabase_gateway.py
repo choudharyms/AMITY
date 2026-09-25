@@ -93,6 +93,18 @@ class SupabaseGateway:
             raise HTTPException(status_code=403, detail="Profile update is not permitted")
         return rows[0]
 
+    def update_driver_availability(self, access_token: str, driver_id: str, availability: bool) -> Dict[str, Any]:
+        rows = self._request(
+            "PATCH", "drivers", access_token,
+            params={"id": f"eq.{driver_id}", "select": "*"},
+            headers={"Content-Type": "application/json", "Prefer": "return=representation"},
+            json={"availability": availability},
+        )
+        if not rows:
+            raise HTTPException(status_code=403, detail="Driver update is not permitted")
+        return rows[0]
+
+
     def snapshot(self, access_token: str, city_id: str) -> Dict[str, List[Dict[str, Any]]]:
         def rows(table: str, order: Optional[str] = None) -> List[Dict[str, Any]]:
             params = {"select": "*", "city_id": f"eq.{city_id}"}

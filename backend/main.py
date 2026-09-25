@@ -102,6 +102,20 @@ def update_me(payload: ProfileUpdate, user: Dict[str, Any] = Depends(authenticat
     return db.update_profile(user["token"], user["id"], values)
 
 
+class DriverAvailabilityUpdate(BaseModel):
+    availability: bool
+
+
+@app.patch("/api/drivers/{driver_id}/availability")
+def update_driver_availability(
+    driver_id: str,
+    payload: DriverAvailabilityUpdate,
+    user: Dict[str, Any] = Depends(authenticated_user),
+) -> Dict[str, Any]:
+    return db.update_driver_availability(user["token"], driver_id, payload.availability)
+
+
+
 @app.get("/api/pilot-data")
 def get_pilot_data(
     city_id: str = Query(default="blr"),

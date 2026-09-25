@@ -42,6 +42,7 @@ class DriverSchema(BaseModel):
     capacity_kg: float = 25.0
     is_synthetic: bool = True
     city_id: str = "blr"
+    user_id: Optional[str] = None
 
 class DonationCreate(BaseModel):
     city_id: str = "blr"

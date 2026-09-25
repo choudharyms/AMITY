@@ -2,7 +2,7 @@
  * DriverDashboard – role-specific home for volunteer drivers.
  * Shows assigned pickups, available missions to claim, availability status, and quick actions.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Bike,
   CheckCheck,
@@ -40,12 +40,24 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
   const [toggling, setToggling] = useState(false)
   const [claimingId, setClaimingId] = useState<string | null>(null)
   const [handoverDonation, setHandoverDonation] = useState<Donation | null>(null)
+  const [optimisticAvailability, setOptimisticAvailability] = useState<boolean | null>(null)
 
   // Find the driver profile accurately linked to this user in the pilot data
   const myDriver: Driver | undefined = data?.drivers.find(d =>
     (d.user_id && profile?.user_id && d.user_id === profile.user_id) ||
-    (profile?.display_name && d.name.toLowerCase() === profile.display_name.toLowerCase())
+    (profile?.display_name && d.name.trim().toLowerCase() === profile.display_name.trim().toLowerCase())
   ) ?? data?.drivers.find(d => d.city_id === cityId) ?? data?.drivers[0]
+
+  // Clear optimistic override once underlying data catches up
+  useEffect(() => {
+    if (myDriver && optimisticAvailability !== null && myDriver.availability === optimisticAvailability) {
+      setOptimisticAvailability(null)
+    }
+  }, [myDriver?.availability, optimisticAvailability])
+
+  const effectiveAvailability = optimisticAvailability !== null
+    ? optimisticAvailability
+    : (myDriver?.availability ?? true)
 
   // Donations currently assigned to this driver in active stages
   const assignedDonations = data?.donations.filter(d =>
@@ -71,23 +83,66 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
 
   async function toggleAvailability() {
     if (!myDriver) return
+    const nextAvailability = !effectiveAvailability
+
+    // Immediate optimistic update for instant UI feedback
+    setOptimisticAvailability(nextAvailability)
     setToggling(true)
+
     try {
       if (isSupabaseConfigured && supabase) {
-        await supabase
-          .from('drivers')
-          .update({ availability: !myDriver.availability })
-          .eq('id', myDriver.id)
+        const updatePayload: Record<string, any> = { availability: nextAvailability }
+        if (!myDriver.user_id && profile?.user_id) {
+          updatePayload.user_id = profile.user_id
+        }
+
+        let updated = false
+        if (myDriver.id) {
+          const { data: updatedRows, error } = await supabase
+            .from('drivers')
+            .update(updatePayload)
+            .eq('id', myDriver.id)
+            .select()
+
+          if (error) throw error
+          if (updatedRows && updatedRows.length > 0) {
+            updated = true
+          }
+        }
+
+        // If no row was updated (e.g. record not yet initialized), upsert with profile
+        if (!updated && profile?.user_id) {
+          const { error: upsertErr } = await supabase
+            .from('drivers')
+            .upsert({
+              id: myDriver.id || ('drv_' + Math.random().toString(36).slice(2, 10)),
+              name: profile.display_name || 'Volunteer Driver',
+              availability: nextAvailability,
+              city_id: cityId || profile.city_id || 'blr',
+              vehicle: myDriver.vehicle || 'Bike',
+              capacity_kg: myDriver.capacity_kg || 30,
+              reliability: 0.95,
+              is_synthetic: false,
+              user_id: profile.user_id,
+            })
+          if (upsertErr) throw upsertErr
+        }
       } else {
-        await apiRequest('/api/me', {
+        await apiRequest(`/api/drivers/${encodeURIComponent(myDriver.id)}/availability`, {
           method: 'PATCH',
-          body: JSON.stringify({ availability_override: !myDriver.availability }),
+          body: JSON.stringify({ availability: nextAvailability }),
         })
       }
+
       refresh()
-      toast.success(myDriver.availability ? 'Marked as offline / unavailable.' : 'You are now online and ready for rescue missions!')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update availability.')
+      toast.success(
+        nextAvailability
+          ? 'You are now online and ready for rescue missions!'
+          : 'Marked as offline / unavailable.'
+      )
+    } catch (err: any) {
+      setOptimisticAvailability(null)
+      toast.error(err?.message || 'Could not update availability.')
     } finally {
       setToggling(false)
     }
@@ -146,7 +201,7 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
             {myDriver
-              ? `${myDriver.vehicle} · up to ${number(myDriver.capacity_kg)} kg payload · ${myDriver.availability ? 'Online & Available' : 'Offline'}`
+              ? `${myDriver.vehicle} · up to ${number(myDriver.capacity_kg)} kg payload · ${effectiveAvailability ? 'Online & Available' : 'Offline'}`
               : 'Volunteer courier profile ready for municipal dispatch.'}
           </p>
           {profile.area && (
@@ -159,13 +214,13 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
 
         {myDriver && (
           <Button
-            variant={myDriver.availability ? 'default' : 'outline'}
+            variant={effectiveAvailability ? 'default' : 'outline'}
             size="sm"
             onClick={toggleAvailability}
             disabled={toggling}
-            className="shrink-0 font-medium"
+            className="shrink-0 font-medium transition-all duration-200"
           >
-            {myDriver.availability ? (
+            {effectiveAvailability ? (
               <>
                 <ToggleRight className="mr-1.5 text-emerald-300" size={16} /> Online (Available)
               </>
@@ -207,14 +262,14 @@ export function DriverDashboard({ data, now, profile, cityId, onSelect, refresh 
         <div className="dash-stat-card panel p-4 rounded-xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Status</span>
-            <ShieldCheck size={18} className={myDriver?.availability ? 'text-emerald-500' : 'text-amber-500'} />
+            <ShieldCheck size={18} className={effectiveAvailability ? 'text-emerald-500' : 'text-amber-500'} />
           </div>
           <div className="mt-2">
             <strong className="text-2xl font-bold text-foreground">
-              {myDriver?.availability ? 'Active' : 'Standby'}
+              {effectiveAvailability ? 'Active' : 'Standby'}
             </strong>
             <span className="text-[11px] text-muted-foreground block">
-              {myDriver?.availability ? 'Receiving city dispatches' : 'Turn online to receive'}
+              {effectiveAvailability ? 'Receiving city dispatches' : 'Turn online to receive'}
             </span>
           </div>
         </div>

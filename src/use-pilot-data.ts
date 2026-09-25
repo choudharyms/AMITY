@@ -111,7 +111,7 @@ export function usePilotData(cityId: string) {
         ? buildSeed()
         : { donors: [], recipients: [], drivers: [], donations: [], dispatch_events: [], records: [] }
     },
-    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 5000 },
+    { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 1000 },
   )
 
   // Attach Supabase Realtime WebSocket subscription for zero-reload live sync (scoped by city_id)
