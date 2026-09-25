@@ -917,7 +917,7 @@
 .metric-bottom > svg { color: var(--muted-foreground); }
 .overview-middle { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
 .panel { 
-  background: var(--card); 
+  background-color: var(--card); 
   border: 1px solid var(--border); 
   border-radius: 16px; 
   overflow: hidden; 
