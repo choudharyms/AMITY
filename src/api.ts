@@ -13,6 +13,18 @@ export interface DonationIntent {
   source_text?: string
 }
 
+export interface DonationMessageParse {
+  item: string
+  category: Category
+  qty_kg: number
+  temp_c: number | null
+  window_hours: number
+  prepared_at_iso: string
+  safe_until_iso: string
+  confidence: number
+  notes: string
+}
+
 export interface VRPStopDetail {
   donation_id: string
   name: string
@@ -96,6 +108,12 @@ export async function createDonation(payload: DonationIntent): Promise<{ id: str
   })
   toast.success('Donation saved to the live rescue network.')
   return posted
+}
+
+export function parseDonationMessage(text: string): Promise<DonationMessageParse> {
+  return apiRequest<DonationMessageParse>('/api/donations/intake-nlp', {
+    method: 'POST', body: JSON.stringify({ text }),
+  })
 }
 
 export async function dispatchAction(id: string, action: 'match' | 'pickup' | 'deliver' | 'escalate', cityId?: string, code?: string): Promise<void> {
