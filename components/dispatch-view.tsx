@@ -210,9 +210,9 @@ export function DispatchView({
       </div>
 
       {/* Live Routing Optimization Benchmark Widget (Global Joint VRP) */}
-      <section className="panel mt-6">
+      <section className="panel p-5 sm:p-6 lg:p-7 mt-6">
         {/* Header with solver info and refresh */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/50">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-border/50">
           <div className="flex items-start gap-3">
             <span className="network-card-icon bg-primary/10 text-primary p-2.5 rounded-xl shrink-0 mt-0.5">
               <Route size={24} />
@@ -245,11 +245,11 @@ export function DispatchView({
         </div>
 
         {/* Tab Navigation for Optimization Views */}
-        <div className="flex items-center gap-2 mt-4 pb-2 border-b border-border/30">
+        <div className="flex items-center gap-2 pt-4 pb-3 border-b border-border/30 overflow-x-auto">
           <button
             type="button"
             onClick={() => setBenchmarkTab('overview')}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
               benchmarkTab === 'overview'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -261,7 +261,7 @@ export function DispatchView({
           <button
             type="button"
             onClick={() => setBenchmarkTab('itinerary')}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
               benchmarkTab === 'itinerary'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -273,7 +273,7 @@ export function DispatchView({
           <button
             type="button"
             onClick={() => setBenchmarkTab('fleet')}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
               benchmarkTab === 'fleet'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -286,16 +286,16 @@ export function DispatchView({
 
         {/* Tab 1: Overview & Live Before/After Comparison */}
         {benchmarkTab === 'overview' && (
-          <div className="space-y-5 my-4">
+          <div className="space-y-6 pt-5">
             {/* 3 Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
               {/* Metric 1: Joint Route */}
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/25 shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:shadow-md">
+                <div className="absolute top-0 right-0 w-28 h-28 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
                 <div>
-                  <div className="flex items-center justify-between text-xs text-primary font-semibold uppercase tracking-wider mb-2">
+                  <div className="flex items-center justify-between text-xs text-primary font-semibold uppercase tracking-wider mb-2.5">
                     <span className="flex items-center gap-1.5">
-                      <Zap size={13} />
+                      <Zap size={14} />
                       AaharSetu Joint VRP
                     </span>
                     <Badge variant="secondary" className="text-[10px] bg-primary/15 text-primary border-primary/30">
@@ -306,7 +306,7 @@ export function DispatchView({
                     {benchmark.joint_route_km} <span className="text-sm font-normal text-muted-foreground font-sans">km</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-primary/10 text-xs text-primary flex items-center gap-1.5 font-medium">
+                <div className="mt-4 pt-3 border-t border-primary/15 text-xs text-primary flex items-center gap-1.5 font-medium">
                   {benchmark.joint_missed_deadlines === 0 ? (
                     <>
                       <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
@@ -318,14 +318,14 @@ export function DispatchView({
                       <span>{benchmark.joint_missed_deadlines ?? 0} missed deadline(s)</span>
                     </>
                   )}
-                  <span className="text-muted-foreground ml-auto">({benchmark.stops_count ?? 0} stops)</span>
+                  <span className="text-muted-foreground ml-auto font-mono text-[11px]">({benchmark.stops_count ?? 0} stops)</span>
                 </div>
               </div>
 
               {/* Metric 2: Greedy Baseline */}
-              <div className="p-4 rounded-xl bg-muted/40 border border-border flex flex-col justify-between">
+              <div className="p-5 rounded-2xl bg-muted/40 dark:bg-muted/20 border border-border/80 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                 <div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2.5">
                     <span>Naive Nearest-First</span>
                     <Badge variant="outline" className="text-[10px] text-muted-foreground">
                       Baseline
@@ -335,7 +335,7 @@ export function DispatchView({
                     {benchmark.greedy_baseline_km} <span className="text-sm font-normal text-muted-foreground font-sans">km</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-border/50 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-medium">
+                <div className="mt-4 pt-3 border-t border-border/60 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-medium">
                   <AlertTriangle size={14} className="shrink-0" />
                   <span>{`${benchmark.greedy_missed_deadlines} Expired Window${benchmark.greedy_missed_deadlines !== 1 ? 's' : ''}`}</span>
                   <span className="text-muted-foreground text-[11px] ml-auto">ignores deadlines</span>
@@ -343,23 +343,23 @@ export function DispatchView({
               </div>
 
               {/* Metric 3: Comparative Gain */}
-              <div className="p-4 rounded-xl bg-secondary/50 border border-secondary flex flex-col justify-between">
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/25 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                 <div>
-                  <div className="flex items-center justify-between text-xs text-primary font-semibold uppercase tracking-wider mb-2">
+                  <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider mb-2.5">
                     <span className="flex items-center gap-1.5">
-                      <TrendingUp size={13} />
+                      <TrendingUp size={14} />
                       Rescue Advantage
                     </span>
-                    <Badge variant="secondary" className="text-[10px] bg-primary/20 text-primary">
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                       Live Gain
                     </Badge>
                   </div>
-                  <div className="text-3xl font-black text-primary font-mono">
+                  <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
                     {`${benchmark.pct_distance_saved > 0 ? '+' : ''}${benchmark.pct_distance_saved}%`}
                     <span className="text-sm font-normal text-muted-foreground font-sans ml-1">saved</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-border/40 text-xs text-foreground/80 font-medium flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-emerald-500/15 text-xs text-foreground/85 font-medium flex items-center justify-between">
                   <span>{`${benchmark.km_saved} road km saved`}</span>
                   {benchmark && benchmark.greedy_missed_deadlines > benchmark.joint_missed_deadlines && (
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
@@ -372,7 +372,7 @@ export function DispatchView({
             </div>
 
             {/* Live Visual Comparison Bar */}
-            <div className="p-4 rounded-xl bg-muted/20 border border-border/60 space-y-3">
+            <div className="p-5 rounded-2xl bg-muted/20 border border-border/60 space-y-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="flex items-center gap-1.5 text-foreground">
                   <Layers size={14} className="text-primary" />
@@ -429,7 +429,7 @@ export function DispatchView({
 
         {/* Tab 2: Stop-by-Stop Time Window Breakdown */}
         {benchmarkTab === 'itinerary' && (
-          <div className="space-y-4 my-4">
+          <div className="space-y-4 pt-5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="text-xs text-muted-foreground">
                 Showing arrival time vs. expiry deadline for every assigned stop in sequence.
@@ -539,7 +539,7 @@ export function DispatchView({
 
         {/* Tab 3: Multi-Driver Fleet Dispatch */}
         {benchmarkTab === 'fleet' && (
-          <div className="space-y-4 my-4">
+          <div className="space-y-4 pt-5">
             <div className="text-xs text-muted-foreground">
               Joint optimization partitions all pickups across available volunteers simultaneously to minimize global vehicle-km while strictly honoring perishable time windows.
             </div>
@@ -605,7 +605,7 @@ export function DispatchView({
         )}
 
         {/* Footer info note */}
-        <div className="text-xs text-muted-foreground bg-muted/20 p-3 rounded-lg flex items-start gap-2 mt-4">
+        <div className="text-xs text-muted-foreground bg-muted/30 p-3.5 rounded-xl border border-border/40 flex items-start gap-2.5 mt-6">
           <ShieldCheck size={15} className="text-primary shrink-0 mt-0.5" />
           <p>
             <strong>Real-Data Computation:</strong> Computed dynamically on pending donations and volunteer positions for {cityId.toUpperCase()}. Deadlines are strictly enforced as hard time-windows. Results are computed via {solverInfo.title} and never hardcoded.
