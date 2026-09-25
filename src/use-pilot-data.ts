@@ -126,7 +126,11 @@ export function usePilotData(cityId: string) {
         .channel(channelId)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'donors' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'recipients' }, () => { mutate() })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'handovers' }, () => { mutate() })
         .subscribe((status) => {
           if (status === 'CHANNEL_ERROR') {
             console.warn(`[Supabase Realtime] Channel error for ${channelId}`)
