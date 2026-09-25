@@ -1,6 +1,15 @@
 -- Migration: Ensure authenticated drivers and coordinators can update and insert driver availability records
 -- Enables instant online/offline toggle functionality for drivers in their dashboard.
 
+-- Grant standard table privileges to authenticated role so RLS policies can evaluate
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.drivers TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.donations TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.dispatch_events TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.donors TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.recipients TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.records TO authenticated;
+
 DO $$
 BEGIN
     -- 1. Ensure UPDATE policy exists on drivers table
