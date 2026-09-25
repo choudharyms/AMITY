@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { categoryLabels, remainingLabel, statusLabels, type Donation, type PilotData } from '@/src/types'
-import { generateHandoverOtp, generateHandoverPayload } from '@/lib/handover'
+import { generateHandoverOtp, generateHandoverPayload, generateBarcodeValue } from '@/lib/handover'
+import { BarcodeSvg } from '@/components/barcode-svg'
 
 export function DonationDialog({ donation, data, now, close }: { donation: Donation | null; data?: PilotData; now: number; close: () => void }) {
   const [showSticker, setShowSticker] = useState(false)
@@ -18,6 +19,7 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
 
   const activeStage: 'pickup' | 'delivery' = donation.status === 'picked_up' ? 'delivery' : 'pickup'
   const activeOtp = generateHandoverOtp(donation.id, activeStage)
+  const barcodeValue = generateBarcodeValue(donation.id, activeStage)
   const qrPayload = generateHandoverPayload(donation, activeStage, batchId)
 
   function handlePrint() {
@@ -57,7 +59,7 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
               className="text-xs h-7 gap-1"
             >
               <FileText size={12} />
-              {showSticker ? 'View Details' : 'FSSAI Batch Label'}
+              {showSticker ? 'View Details' : 'FSSAI Batch Label & Barcode'}
             </Button>
           </div>
 
@@ -107,6 +109,21 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
                 </div>
               </div>
 
+              {/* 1D Barcode Manifest */}
+              <div className="p-2.5 rounded-lg bg-white border border-primary/20 flex flex-col items-center justify-center text-center print:border-black shadow-xs">
+                <BarcodeSvg 
+                  value={barcodeValue} 
+                  text={`${batchId} · CODE-128 · OTP ${activeOtp}`} 
+                  height={44}
+                  width={1.6}
+                  fontSize={10}
+                  className="border-none shadow-none p-0"
+                />
+                <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-wider mt-1">
+                  GS1 / CODE-128 COMPLIANT FOOD LOGISTICS BARCODE
+                </span>
+              </div>
+
               <div className="p-3 rounded-lg bg-background/90 border text-[11px] flex items-center justify-between gap-3">
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">Shelter Destination: {recipient?.name ?? 'Assigning…'}</p>
@@ -130,7 +147,7 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
                     fgColor="#000000"
                   />
                   <span className="text-[9px] font-mono font-bold text-zinc-700 mt-1">
-                    SCAN TO VERIFY
+                    2D QR PASS
                   </span>
                 </div>
               </div>
@@ -138,7 +155,7 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
               <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-primary/20">
                 <span>Verification: <strong>{donation.status.toUpperCase()}</strong></span>
                 <Button variant="ghost" size="sm" onClick={handlePrint} className="h-6 text-[11px] px-2 gap-1">
-                  <Printer size={12} /> Print Sticker
+                  <Printer size={12} /> Print Barcode Label
                 </Button>
               </div>
             </div>
@@ -166,26 +183,37 @@ export function DonationDialog({ donation, data, now, close }: { donation: Donat
                 </div>
               </div>
 
-              {/* Handover Verification & QR Token Card */}
-              <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-between gap-3 text-xs">
-                <div>
+              {/* Handover Verification & Dual Barcode/QR Token Card */}
+              <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 flex flex-col gap-2.5 text-xs">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-semibold text-foreground">
                     <ShieldCheck size={15} className="text-primary" />
                     Handover Verification ({activeStage === 'pickup' ? 'Stage 1: Pickup' : 'Stage 2: Delivery'})
                   </div>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Scan with driver device or confirm with 6-digit OTP
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm px-2.5 py-0.5 rounded bg-background border text-primary tracking-wider shadow-2xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">OTP:</span>
+                    <span className="font-mono font-bold text-sm px-2 py-0.5 rounded bg-background border text-primary tracking-wider shadow-2xs">
                       {activeOtp}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">FSSAI Chain-of-Custody</span>
                   </div>
                 </div>
-                <div className="flex flex-col items-center p-1.5 rounded-lg bg-white border shadow-2xs shrink-0">
-                  <QRCodeSVG value={qrPayload} size={64} level="M" bgColor="#ffffff" fgColor="#000000" />
-                  <span className="text-[8px] font-mono font-bold text-zinc-700 mt-0.5">QR CODE</span>
+
+                <div className="flex items-center justify-between gap-3 pt-1 border-t border-primary/10">
+                  <div className="flex-1 flex flex-col items-center bg-white p-2 rounded-lg border border-zinc-200">
+                    <BarcodeSvg 
+                      value={barcodeValue} 
+                      text={batchId} 
+                      height={36} 
+                      width={1.4} 
+                      fontSize={9} 
+                      className="border-none shadow-none p-0" 
+                    />
+                    <span className="text-[8px] font-mono font-bold text-zinc-500 mt-0.5">1D CODE-128</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-zinc-200 shadow-2xs shrink-0">
+                    <QRCodeSVG value={qrPayload} size={50} level="M" bgColor="#ffffff" fgColor="#000000" />
+                    <span className="text-[8px] font-mono font-bold text-zinc-500 mt-0.5">2D QR PASS</span>
+                  </div>
                 </div>
               </div>
 

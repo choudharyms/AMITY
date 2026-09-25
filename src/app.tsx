@@ -2,7 +2,8 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
-  MapPin, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Plus, ShieldCheck, User
+  MapPin, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Plus, ShieldCheck, User,
+  Barcode
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isDesktopBrowser, subscribeToWebPush } from '@/src/lib/push-notifications'
@@ -13,6 +14,7 @@ import { DonationDialog } from '@/components/donation-dialog'
 import { DonationForm } from '@/components/donation-form'
 import { DonationsTable } from '@/components/donations-table'
 import { DispatchView } from '@/components/dispatch-view'
+import { HandoverDialog } from '@/components/handover-dialog'
 import { DonorDashboard } from '@/components/donor-dashboard'
 import { DriverDashboard } from '@/components/driver-dashboard'
 import { RecipientDashboard } from '@/components/recipient-dashboard'
@@ -146,6 +148,7 @@ export default function App({
   const [posting, setPosting] = useState(false)
   const [info, setInfo] = useState<'help' | 'notifications' | null>(null)
   const [selected, setSelected] = useState<Donation | null>(null)
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [focusedMapPointId, setFocusedMapPointId] = useState<string | null>(null)
@@ -493,6 +496,16 @@ export default function App({
               <ChevronDown size={12} />
             </button>
             <span className="topbar-divider" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBarcodeScannerOpen(true)}
+              className="h-8 gap-1.5 text-xs font-semibold px-2.5 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 shadow-2xs cursor-pointer"
+              title="Scan Food Package Barcode or QR Code"
+            >
+              <Barcode size={15} />
+              <span className="hidden sm:inline">Scan Barcode</span>
+            </Button>
             <Button variant="ghost" size="icon" aria-label="Safety guidelines" onClick={() => setInfo('help')}>
               <CircleHelp />
             </Button>
@@ -751,6 +764,21 @@ export default function App({
         }}
       />
       <DonationForm open={posting} data={data} cityId={cityId} refresh={refresh ?? (() => {})} onClose={() => setPosting(false)} />
+
+      {/* Universal Barcode & QR Code Scanner Modal */}
+      {isBarcodeScannerOpen && (
+        <HandoverDialog
+          donation={null}
+          cityId={cityId}
+          data={data}
+          isOpen={isBarcodeScannerOpen}
+          onClose={() => setIsBarcodeScannerOpen(false)}
+          onSuccess={() => {
+            setIsBarcodeScannerOpen(false)
+            refresh?.()
+          }}
+        />
+      )}
 
       {/* Help / Notifications dialog */}
       <Dialog open={info !== null} onOpenChange={open => { if (!open) setInfo(null) }}>
