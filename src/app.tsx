@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
@@ -53,8 +53,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { useSession } from './use-session'
-import { useProfile } from './use-profile'
+import { useSession, hasStoredSupabaseSession } from './use-session'
+import { useProfile, clearCachedProfile } from './use-profile'
 import { isActive, type Donation, type Driver, type PilotData, type Recipient, type Section } from './types'
 import type { BackendHealth } from './use-pilot-data'
 import { cities } from './cities'
@@ -187,9 +187,12 @@ export default function App({
 
   const openLogin = () => { window.location.hash = 'login' }
 
-  const { data: session } = useSession()
-  const { profile, error: profileError, refresh: refreshProfile } = useProfile(session?.user.id)
+  const { data: session, isLoading: sessionLoading } = useSession()
+  const { profile, error: profileError, refresh: refreshProfile, isLoading: profileLoading } = useProfile(session?.user.id)
   const city = cities.find(item => item.id === cityId) ?? cities[0]
+
+  const hasStoredSession = useMemo(() => hasStoredSupabaseSession(), [])
+  const isAuthInitializing = (sessionLoading && hasStoredSession) || (Boolean(session) && profileLoading && !profile)
 
   const code = location.pathname === '/auth/callback'
     ? new URLSearchParams(location.search).get('code')
@@ -303,6 +306,7 @@ export default function App({
 
   async function signOut() {
     if (!supabase) { toast.error('Authentication is not configured in this build.'); return }
+    clearCachedProfile()
     const { error } = await supabase.auth.signOut()
     if (error) toast.error('Could not sign out. Try again.')
     else toast.success('Signed out securely.')
@@ -324,6 +328,28 @@ export default function App({
 
   // Role-adaptive overview: coordinators see the full ops view, others see their role dashboard
   function renderOverview() {
+    if (isAuthInitializing) {
+      return (
+        <div className="overview-content animate-pulse" aria-label="Loading your workspace">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-28 bg-card/60 border border-border/60 rounded-2xl p-5 flex flex-col justify-between">
+                <div className="h-4 bg-muted/60 rounded w-1/2" />
+                <div className="h-8 bg-muted/70 rounded w-1/3" />
+                <div className="h-3 bg-muted/50 rounded w-2/3" />
+              </div>
+            ))}
+          </div>
+          <div className="h-80 bg-card/60 border border-border/60 rounded-2xl flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <LoaderCircle className="animate-spin text-primary" size={28} />
+              <span className="text-xs font-medium">Loading your operational workspace…</span>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     if (!session || !profile) {
       // Unauthenticated — show generic overview
       return (
@@ -492,10 +518,21 @@ export default function App({
                     {profile && <span className="role-eyebrow-badge">{profile.role.toUpperCase()}</span>}
                   </div>
                   <h1>{section === 'overview'
-                    ? (isDonor ? `Welcome, ${profile?.display_name.split(' ')[0]}` : 'Rescue overview')
+                    ? (isAuthInitializing
+                      ? 'Loading workspace…'
+                      : isDonor ? `Welcome, ${profile?.display_name.split(' ')[0]}`
+                      : isDriver ? 'Volunteer Driver Dashboard'
+                      : isRecipient ? 'Shelter Recipient Dashboard'
+                      : isCoordinator ? 'Municipal Rescue Overview'
+                      : 'Rescue overview')
                     : sectionNames[section]}
                   </h1>
-                  <p>{descriptions[section]}</p>
+                  <p>{section === 'overview' && profile && !isAuthInitializing
+                    ? (isDonor ? 'Post surplus food and track verified rescue pickups in real time.'
+                      : isDriver ? 'Active rescue runs, route corridor waypoints, and OTP handover verification.'
+                      : isRecipient ? 'Incoming rescue shipments, kitchen capacity allocations, and delivery confirmations.'
+                      : 'Municipal food rescue telemetry, real-time corridors, and verified impact analytics.')
+                    : descriptions[section]}</p>
                 </div>
                 <div className="heading-actions">
                   <Badge variant="outline">
