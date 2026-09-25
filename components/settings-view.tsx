@@ -473,7 +473,11 @@ export function SettingsView({
             <div className="shrink-0 flex items-center gap-2">
               <Select value={cityId} onValueChange={(val) => { if (val) void selectCity(val) }} disabled={savingCity}>
                 <SelectTrigger id="active-city" className="h-9 min-w-56 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground">
-                  <SelectValue placeholder="Select territory" />
+                  <SelectValue placeholder="Select territory">
+                    {cities.find((c) => c.id === cityId)?.name
+                      ? `${cities.find((c) => c.id === cityId)!.name} Network (${cities.find((c) => c.id === cityId)!.state})`
+                      : 'Select territory'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {cities.map((city) => (
@@ -556,7 +560,7 @@ export function SettingsView({
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <label htmlFor="account-area" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <MapPin size={13} className="text-muted-foreground" /> Operating Area / Landmark Address
+                    <MapPin size={13} className="text-muted-foreground" /> Location
                   </label>
                   <Input
                     id="account-area"
