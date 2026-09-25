@@ -168,7 +168,7 @@ export default function App({
         <div className="overview-content">
           <OverviewMetrics data={data} />
           <div className="overview-middle">
-            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} />
+            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
             <ActivityFeed data={data} navigate={setSection} />
           </div>
           {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
@@ -190,7 +190,7 @@ export default function App({
       <div className="overview-content">
         <OverviewMetrics data={data} />
         <div className="overview-middle">
-          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} />
+          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} />
           <ActivityFeed data={data} navigate={setSection} />
         </div>
         {!!urgent?.length && <UrgencyBanner count={urgent.length} onDispatch={() => setSection('dispatch')} />}
