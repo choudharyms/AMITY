@@ -51,6 +51,9 @@ export default defineConfig(({ mode }) => {
               if (id.includes('maplibre-gl') || id.includes('react-map-gl')) {
                 return 'vendor-maplibre'
               }
+              if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
+                return 'vendor-charts'
+              }
               if (id.includes('lucide-react')) {
                 return 'vendor-lucide'
               }

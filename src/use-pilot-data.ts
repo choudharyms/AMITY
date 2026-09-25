@@ -84,15 +84,15 @@ export function usePilotData(cityId: string) {
       if (isSupabaseConfigured && supabase) {
         try {
           const [donorsRes, recipientsRes, driversRes, donationsRes, dispatchRes, recordsRes] = await Promise.all([
-            supabase.from('donors').select('*').eq('city_id', cityId),
-            supabase.from('recipients').select('*').eq('city_id', cityId),
-            supabase.from('drivers').select('*').eq('city_id', cityId),
-            supabase.from('donations').select('*').eq('city_id', cityId),
-            supabase.from('dispatch_events').select('*').eq('city_id', cityId),
-            supabase.from('records').select('*').eq('city_id', cityId),
+            supabase.from('donors').select('id, name, area, latitude, longitude, contact_person, phone, license_no, license_verified, is_synthetic, city_id').eq('city_id', cityId),
+            supabase.from('recipients').select('id, name, area, latitude, longitude, demand_kg, accepted_categories, contact_person, phone, city_id, is_synthetic, approved').eq('city_id', cityId),
+            supabase.from('drivers').select('id, name, latitude, longitude, availability, vehicle, capacity_kg, telegram_id, reliability, city_id, is_synthetic').eq('city_id', cityId),
+            supabase.from('donations').select('id, donor_id, item, category, qty_kg, prepared_at, temp_c, safe_until, status, recipient_id, driver_id, city_id, is_synthetic, created_at').eq('city_id', cityId).order('created_at', { ascending: false }).limit(200),
+            supabase.from('dispatch_events').select('id, donation_id, driver_id, event_type, message, city_id, created_at').eq('city_id', cityId).order('created_at', { ascending: false }).limit(100),
+            supabase.from('records').select('id, donation_id, quantity_kg, temperature_c, area, delivered_at, consume_by, city_id, created_at').eq('city_id', cityId).order('delivered_at', { ascending: false }).limit(250),
           ])
 
-          const donors = (donorsRes.data as Donor[]) ?? []
+          const donors = (donorsRes.data as unknown as Donor[]) ?? []
           const recipients = normalizeRecipients((recipientsRes.data as any[]) ?? [])
           const drivers = (driversRes.data as Driver[]) ?? []
           let donations = (donationsRes.data as Donation[]) ?? []
@@ -114,7 +114,7 @@ export function usePilotData(cityId: string) {
     { revalidateOnFocus: true, revalidateOnReconnect: true, dedupingInterval: 5000 },
   )
 
-  // Attach Supabase Realtime WebSocket subscription for zero-reload live sync
+  // Attach Supabase Realtime WebSocket subscription for zero-reload live sync (scoped by city_id)
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return
 
@@ -124,13 +124,13 @@ export function usePilotData(cityId: string) {
       const channelId = `realtime-${cityId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       channel = supabase
         .channel(channelId)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'donors' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'recipients' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => { mutate() })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'handovers' }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'donations', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_events', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'donors', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'recipients', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'records', filter: `city_id=eq.${cityId}` }, () => { mutate() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'handovers', filter: `city_id=eq.${cityId}` }, () => { mutate() })
         .subscribe((status) => {
           if (status === 'CHANNEL_ERROR') {
             console.warn(`[Supabase Realtime] Channel error for ${channelId}`)

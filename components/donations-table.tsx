@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowRight, Boxes, Clock3, Plus, Search, SlidersHorizontal, Store } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,11 +8,13 @@ import { categoryLabels, isActive, number, remainingLabel, statusLabels, type Do
 export function DonationsTable({ data, now, full = false, openDonation, viewAll, onPostDonation }: { data?: PilotData; now: number; full?: boolean; openDonation: (donation: Donation) => void; viewAll: () => void; onPostDonation?: () => void }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('active')
-  const donations = [...(data?.donations ?? [])].filter(d => {
-    const donor = data?.donors.find(p => p.id === d.donor_id)
-    return (filter === 'all' || (filter === 'active' ? isActive(d) : d.status === filter)) && `${d.item} ${donor?.name ?? ''} ${donor?.area ?? ''}`.toLowerCase().includes(query.toLowerCase())
-  }).sort((a, b) => new Date(a.safe_until).getTime() - new Date(b.safe_until).getTime())
-  const visible = full ? donations : donations.slice(0, 4)
+  const donations = useMemo(() => {
+    return [...(data?.donations ?? [])].filter(d => {
+      const donor = data?.donors.find(p => p.id === d.donor_id)
+      return (filter === 'all' || (filter === 'active' ? isActive(d) : d.status === filter)) && `${d.item} ${donor?.name ?? ''} ${donor?.area ?? ''}`.toLowerCase().includes(query.toLowerCase())
+    }).sort((a, b) => new Date(a.safe_until).getTime() - new Date(b.safe_until).getTime())
+  }, [data?.donations, data?.donors, filter, query])
+  const visible = useMemo(() => full ? donations : donations.slice(0, 4), [full, donations])
   return <section className="panel donation-panel"><div className="panel-header"><div className="flex items-center gap-2"><h2>{full ? 'Donation directory' : 'Active donations'}</h2>{data && <Badge variant="secondary">{donations.length}</Badge>}</div><div className="flex items-center gap-2">{full && onPostDonation && <Button size="sm" onClick={onPostDonation} className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs font-semibold shadow-sm"><Plus size={13} className="mr-1" />Post a food donation</Button>}{!full && <Button variant="ghost" size="sm" onClick={viewAll}>View all <ArrowRight data-icon="inline-end" /></Button>}</div></div>
     <div className="table-toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">Search donations</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search donations or donors…" /></label><label className="filter-select"><SlidersHorizontal size={14} /><span className="sr-only">Filter donations</span><select value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active rescues</option><option value="all">All statuses</option><option value="delivered">Delivered</option><option value="expired">Window closed</option></select></label></div>
     <div className="table-scroll"><table className="rescue-table"><thead><tr><th>Donation</th><th>Quantity</th><th><span className="flex items-center gap-1">Safe window<ArrowDown size={11} /></span></th><th>Status</th><th><span className="sr-only">Details</span></th></tr></thead><tbody>{visible.map(d => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import useSWR from 'swr'
 import {
   Bell, ChevronDown, ChevronRight, CircleHelp, Database, Leaf, LoaderCircle,
@@ -16,18 +16,39 @@ import { DispatchView } from '@/components/dispatch-view'
 import { DonorDashboard } from '@/components/donor-dashboard'
 import { DriverDashboard } from '@/components/driver-dashboard'
 import { RecipientDashboard } from '@/components/recipient-dashboard'
-import { ImpactView } from '@/components/impact-view'
 import { RecipientView, DriverView } from '@/components/network-views'
 import { RecipientDialog } from '@/components/recipient-dialog'
 import { DriverDialog } from '@/components/driver-dialog'
 import { OnboardingWizard } from '@/components/onboarding-wizard'
 import { OverviewMetrics } from '@/components/overview-metrics'
 import { OverviewInsights } from '@/components/overview-insights'
-import { RescueMap } from '@/components/rescue-map'
 import { SettingsView } from '@/components/settings-view'
 import { PostDonationView } from '@/components/post-donation-view'
 import { WorkspacesView } from '@/components/workspaces-view'
 import { ErrorBoundary } from '@/components/error-boundary'
+
+// Code-split heavy visualization modules (MapLibre GL and Recharts)
+const RescueMap = lazy(() => import('@/components/rescue-map').then(m => ({ default: m.RescueMap })))
+const ImpactView = lazy(() => import('@/components/impact-view').then(m => ({ default: m.ImpactView })))
+
+function MapSkeleton() {
+  return (
+    <div className="map-card flex flex-col items-center justify-center min-h-[380px] bg-card/50 backdrop-blur-sm border border-border/60 rounded-2xl p-6 text-center text-muted-foreground animate-pulse">
+      <LoaderCircle className="animate-spin mb-3 text-primary" size={28} />
+      <span className="text-sm font-semibold text-foreground">Loading rescue corridor map…</span>
+      <span className="text-xs text-muted-foreground/75 mt-1">Connecting to geospatial telemetry</span>
+    </div>
+  )
+}
+
+function ImpactSkeleton() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center text-muted-foreground animate-pulse">
+      <LoaderCircle className="animate-spin mb-3 text-primary" size={28} />
+      <span className="text-sm font-medium">Generating municipal impact analytics…</span>
+    </div>
+  )
+}
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -309,7 +330,9 @@ export default function App({
         <div className="overview-content">
           <OverviewMetrics data={data} />
           <div className="overview-middle">
-            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
+            <Suspense fallback={<MapSkeleton />}>
+              <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
+            </Suspense>
             <ActivityFeed data={data} navigate={setSection} />
           </div>
           <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
@@ -332,7 +355,9 @@ export default function App({
       <div className="overview-content">
         <OverviewMetrics data={data} />
         <div className="overview-middle">
-          <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
+          <Suspense fallback={<MapSkeleton />}>
+            <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
+          </Suspense>
           <ActivityFeed data={data} navigate={setSection} />
         </div>
         <OverviewInsights data={data} onNavigateToImpact={() => setSection('impact')} />
@@ -594,7 +619,11 @@ export default function App({
                     onDispatch={handleDispatchDriver}
                   />
                 )}
-                {section === 'impact' && <ImpactView data={data} />}
+                {section === 'impact' && (
+                  <Suspense fallback={<ImpactSkeleton />}>
+                    <ImpactView data={data} />
+                  </Suspense>
+                )}
                 {section === 'settings' && (
                   <SettingsView
                     source={source} backend={backend} cityId={cityId} onCityChange={onCityChange ?? (() => {})}

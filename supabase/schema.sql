@@ -177,6 +177,20 @@ CREATE INDEX IF NOT EXISTS donations_city_created_idx ON donations (city_id, cre
 CREATE INDEX IF NOT EXISTS dispatch_events_city_created_idx ON dispatch_events (city_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS records_city_delivered_idx ON records (city_id, delivered_at DESC);
 
+-- PostGIS GIST Spatial Indexes
+CREATE INDEX IF NOT EXISTS donors_location_gist_idx ON donors USING GIST (location);
+CREATE INDEX IF NOT EXISTS recipients_location_gist_idx ON recipients USING GIST (location);
+CREATE INDEX IF NOT EXISTS drivers_location_gist_idx ON drivers USING GIST (location);
+
+-- Partial index for active dispatch lookups
+CREATE INDEX IF NOT EXISTS donations_active_rescuable_idx ON donations (city_id, status, safe_until)
+WHERE status IN ('posted', 'matched', 'accepted', 'picked_up');
+
+-- Composite indexes for dashboard and matching
+CREATE INDEX IF NOT EXISTS donations_donor_created_idx ON donations (donor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS donations_driver_status_idx ON donations (driver_id, status);
+CREATE INDEX IF NOT EXISTS matches_donation_state_idx ON matches (donation_id, state);
+
 -- Every new account is a donor until a trusted administrator grants a different role.
 CREATE OR REPLACE FUNCTION public.provision_aaharsetu_profile()
 RETURNS trigger
