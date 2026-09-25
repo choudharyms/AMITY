@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { apiRequest } from '@/src/api'
 import { cities } from '@/src/cities'
 import {
@@ -470,19 +471,18 @@ export function SettingsView({
             </div>
 
             <div className="shrink-0 flex items-center gap-2">
-              <select
-                id="active-city"
-                value={cityId}
-                disabled={savingCity}
-                onChange={(event) => void selectCity(event.target.value)}
-                className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground cursor-pointer transition-colors focus:border-emerald-500 outline-none"
-              >
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name} Network ({city.state})
-                  </option>
-                ))}
-              </select>
+              <Select value={cityId} onValueChange={(val) => { if (val) void selectCity(val) }} disabled={savingCity}>
+                <SelectTrigger id="active-city" className="h-9 min-w-56 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground">
+                  <SelectValue placeholder="Select territory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name} Network ({city.state})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {savingCity && <CircleDashed size={14} className="animate-spin text-emerald-500" />}
             </div>
           </div>

@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import {
   ChartContainer,
@@ -775,18 +776,19 @@ export function ImpactView({ data }: { data?: PilotData }) {
                 className="pl-9 pr-3 py-1.5 text-xs bg-muted/40 border border-border rounded-xl text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary w-48 transition-all"
               />
             </div>
-            <select
-              value={selectedCategory}
-              onChange={e => setSelectedCategory(e.target.value)}
-              className="py-1.5 px-3 text-xs bg-muted/40 border border-border rounded-xl text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer transition-all"
-            >
-              <option value="all">All Categories</option>
-              <option value="cooked_hot">Hot Meals</option>
-              <option value="cooked_cold">Chilled Food</option>
-              <option value="bakery">Bakery</option>
-              <option value="produce">Fresh Produce</option>
-              <option value="packaged">Packaged</option>
-            </select>
+            <Select value={selectedCategory} onValueChange={(val) => { if (val) setSelectedCategory(val) }}>
+              <SelectTrigger size="sm" className="h-8 min-w-[145px] text-xs bg-muted/40 border-border rounded-xl font-medium">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="cooked_hot">Hot Meals</SelectItem>
+                <SelectItem value="cooked_cold">Chilled Food</SelectItem>
+                <SelectItem value="bakery">Bakery</SelectItem>
+                <SelectItem value="produce">Fresh Produce</SelectItem>
+                <SelectItem value="packaged">Packaged</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={exportRecords} className="rounded-xl text-xs gap-1.5 font-medium">
               <Download size={13} />
               Export CSV

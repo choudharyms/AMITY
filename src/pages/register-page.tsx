@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { cities } from '@/src/cities'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import './auth.css'
 
@@ -292,17 +293,18 @@ export function RegisterPage({
                     <div className="text-sm font-semibold text-white">{currentCity.name}, {currentCity.state}</div>
                   </div>
                 </div>
-                <select
-                  value={cityId}
-                  onChange={(e) => setCityId(e.target.value)}
-                  className="bg-black/60 border border-emerald-500/30 rounded-lg px-3 py-1.5 text-xs text-emerald-300 font-medium cursor-pointer outline-none focus:border-emerald-400"
-                >
-                  {cities.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-neutral-900 text-white">
-                      {c.name} ({c.state})
-                    </option>
-                  ))}
-                </select>
+                <Select value={cityId} onValueChange={(val) => { if (val) setCityId(val) }}>
+                  <SelectTrigger className="h-8 min-w-44 bg-black/60 border-emerald-500/30 rounded-lg px-2.5 text-xs text-emerald-300 font-medium">
+                    <SelectValue placeholder="Select City" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
+                    {cities.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-white hover:bg-neutral-800 focus:bg-neutral-800 focus:text-white">
+                        {c.name} ({c.state})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <button
@@ -462,21 +464,21 @@ export function RegisterPage({
                     <label className="auth-label" htmlFor="reg-city">
                       City
                     </label>
-                    <div className="auth-input-wrapper">
-                      <MapPin size={16} className="auth-input-icon" />
-                      <select
-                        id="reg-city"
-                        value={cityId}
-                        onChange={(e) => setCityId(e.target.value)}
-                        className="auth-select-field"
-                      >
+                    <Select value={cityId} onValueChange={(val) => { if (val) setCityId(val) }}>
+                      <SelectTrigger id="reg-city" className="h-11 w-full bg-neutral-900/80 border-neutral-700/80 rounded-xl text-white px-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} className="text-emerald-400 shrink-0" />
+                          <SelectValue placeholder="Select territory" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
                         {cities.map((c) => (
-                          <option key={c.id} value={c.id} className="bg-neutral-900 text-white">
+                          <SelectItem key={c.id} value={c.id} className="text-white hover:bg-neutral-800 focus:bg-neutral-800 focus:text-white">
                             {c.name} ({c.state})
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
-                    </div>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="auth-input-group">

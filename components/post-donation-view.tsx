@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { createDonation } from '@/src/api'
 import { addLocalDonation } from '@/src/seed'
@@ -533,25 +534,29 @@ export function PostDonationView({
                   <label htmlFor="food-type" className="form-field-label">
                     Food type <span className="text-red-500">*</span>
                   </label>
-                  <div className="input-with-icon">
-                    <UtensilsCrossed size={16} className="field-prefix-icon" />
-                    <select
-                      id="food-type"
-                      className={`form-select with-icon ${errors.foodType ? 'is-invalid' : ''}`}
+                  <div className="relative">
+                    <Select
                       value={foodType}
-                      onChange={(e) => {
-                        setFoodType(e.target.value)
-                        if (errors.foodType) setErrors((prev) => ({ ...prev, foodType: undefined }))
+                      onValueChange={(val) => {
+                        if (val) {
+                          setFoodType(val)
+                          if (errors.foodType) setErrors((prev) => ({ ...prev, foodType: undefined }))
+                        }
                       }}
                     >
-                      <option value="Cooked food">Cooked food</option>
-                      <option value="Packaged food">Packaged food</option>
-                      <option value="Fruits">Fruits</option>
-                      <option value="Vegetables">Vegetables</option>
-                      <option value="Bakery items">Bakery items</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <ChevronDown size={14} className="field-suffix-icon" />
+                      <SelectTrigger id="food-type" className={`h-11 w-full pl-9 bg-card border-border/80 rounded-xl text-sm ${errors.foodType ? 'border-destructive ring-1 ring-destructive/30' : ''}`}>
+                        <UtensilsCrossed size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <SelectValue placeholder="Select food type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cooked food">Cooked food</SelectItem>
+                        <SelectItem value="Packaged food">Packaged food</SelectItem>
+                        <SelectItem value="Fruits">Fruits</SelectItem>
+                        <SelectItem value="Vegetables">Vegetables</SelectItem>
+                        <SelectItem value="Bakery items">Bakery items</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   {errors.foodType && <span className="inline-field-error">{errors.foodType}</span>}
                 </div>
@@ -584,24 +589,28 @@ export function PostDonationView({
                   <label htmlFor="meal-type" className="form-field-label">
                     Meal type <span className="text-red-500">*</span>
                   </label>
-                  <div className="input-with-icon">
-                    <Soup size={16} className="field-prefix-icon" />
-                    <select
-                      id="meal-type"
-                      className={`form-select with-icon ${errors.mealType ? 'is-invalid' : ''}`}
+                  <div className="relative">
+                    <Select
                       value={mealType}
-                      onChange={(e) => {
-                        setMealType(e.target.value)
-                        if (errors.mealType) setErrors((prev) => ({ ...prev, mealType: undefined }))
+                      onValueChange={(val) => {
+                        if (val) {
+                          setMealType(val)
+                          if (errors.mealType) setErrors((prev) => ({ ...prev, mealType: undefined }))
+                        }
                       }}
                     >
-                      <option value="Breakfast">Breakfast</option>
-                      <option value="Lunch">Lunch</option>
-                      <option value="Dinner">Dinner</option>
-                      <option value="Snacks">Snacks</option>
-                      <option value="Mixed">Mixed</option>
-                    </select>
-                    <ChevronDown size={14} className="field-suffix-icon" />
+                      <SelectTrigger id="meal-type" className={`h-11 w-full pl-9 bg-card border-border/80 rounded-xl text-sm ${errors.mealType ? 'border-destructive ring-1 ring-destructive/30' : ''}`}>
+                        <Soup size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <SelectValue placeholder="Select meal type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Breakfast">Breakfast</SelectItem>
+                        <SelectItem value="Lunch">Lunch</SelectItem>
+                        <SelectItem value="Dinner">Dinner</SelectItem>
+                        <SelectItem value="Snacks">Snacks</SelectItem>
+                        <SelectItem value="Mixed">Mixed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   {errors.mealType && <span className="inline-field-error">{errors.mealType}</span>}
                 </div>
@@ -758,21 +767,20 @@ export function PostDonationView({
                   <label htmlFor="packaging-type" className="form-field-label">
                     Packaging type
                   </label>
-                  <div className="input-with-icon">
-                    <Package size={16} className="field-prefix-icon" />
-                    <select
-                      id="packaging-type"
-                      className="form-select with-icon"
-                      value={packagingType}
-                      onChange={(e) => setPackagingType(e.target.value)}
-                    >
-                      <option value="Individual containers">Individual containers</option>
-                      <option value="Bulk container">Bulk container</option>
-                      <option value="Sealed packets">Sealed packets</option>
-                      <option value="Boxes">Boxes</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <ChevronDown size={14} className="field-suffix-icon" />
+                  <div className="relative">
+                    <Select value={packagingType} onValueChange={(val) => { if (val) setPackagingType(val) }}>
+                      <SelectTrigger id="packaging-type" className="h-11 w-full pl-9 bg-card border-border/80 rounded-xl text-sm">
+                        <Package size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <SelectValue placeholder="Packaging type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Individual containers">Individual containers</SelectItem>
+                        <SelectItem value="Bulk container">Bulk container</SelectItem>
+                        <SelectItem value="Sealed packets">Sealed packets</SelectItem>
+                        <SelectItem value="Boxes">Boxes</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -780,19 +788,18 @@ export function PostDonationView({
                   <label htmlFor="storage-condition" className="form-field-label">
                     Storage condition
                   </label>
-                  <div className="input-with-icon">
-                    <Thermometer size={16} className="field-prefix-icon" />
-                    <select
-                      id="storage-condition"
-                      className="form-select with-icon"
-                      value={storageCondition}
-                      onChange={(e) => setStorageCondition(e.target.value)}
-                    >
-                      <option value="Room temperature">Room temperature</option>
-                      <option value="Refrigerated">Refrigerated</option>
-                      <option value="Frozen">Frozen</option>
-                    </select>
-                    <ChevronDown size={14} className="field-suffix-icon" />
+                  <div className="relative">
+                    <Select value={storageCondition} onValueChange={(val) => { if (val) setStorageCondition(val) }}>
+                      <SelectTrigger id="storage-condition" className="h-11 w-full pl-9 bg-card border-border/80 rounded-xl text-sm">
+                        <Thermometer size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <SelectValue placeholder="Storage condition" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Room temperature">Room temperature</SelectItem>
+                        <SelectItem value="Refrigerated">Refrigerated</SelectItem>
+                        <SelectItem value="Frozen">Frozen</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -800,22 +807,21 @@ export function PostDonationView({
                   <label htmlFor="shelf-life" className="form-field-label">
                     Estimated shelf life
                   </label>
-                  <div className="input-with-icon">
-                    <Clock size={16} className="field-prefix-icon" />
-                    <select
-                      id="shelf-life"
-                      className="form-select with-icon"
-                      value={estimatedShelfLife}
-                      onChange={(e) => setEstimatedShelfLife(e.target.value)}
-                    >
-                      <option value="1-2 hours">1-2 hours</option>
-                      <option value="2-4 hours">2-4 hours</option>
-                      <option value="4-6 hours">4-6 hours</option>
-                      <option value="Today (before night)">Today (before night)</option>
-                      <option value="1-2 days">1-2 days</option>
-                      <option value="3+ days">3+ days</option>
-                    </select>
-                    <ChevronDown size={14} className="field-suffix-icon" />
+                  <div className="relative">
+                    <Select value={estimatedShelfLife} onValueChange={(val) => { if (val) setEstimatedShelfLife(val) }}>
+                      <SelectTrigger id="shelf-life" className="h-11 w-full pl-9 bg-card border-border/80 rounded-xl text-sm">
+                        <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <SelectValue placeholder="Estimated shelf life" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-2 hours">1-2 hours</SelectItem>
+                        <SelectItem value="2-4 hours">2-4 hours</SelectItem>
+                        <SelectItem value="4-6 hours">4-6 hours</SelectItem>
+                        <SelectItem value="Today (before night)">Today (before night)</SelectItem>
+                        <SelectItem value="1-2 days">1-2 days</SelectItem>
+                        <SelectItem value="3+ days">3+ days</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

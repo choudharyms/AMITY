@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel, FieldError, FieldDescription } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cities } from '@/src/cities'
 
@@ -219,15 +220,29 @@ export function AuthDialog({ open, onOpenChange, cityId = 'blr' }: { open: boole
                 <div className="grid grid-cols-2 gap-3">
                   <Field>
                     <FieldLabel htmlFor="su-city">City</FieldLabel>
-                    <select id="su-city" value={cityId} disabled className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm">
-                      {cities.filter(c => c.id === cityId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <Select value={cityId} disabled>
+                      <SelectTrigger id="su-city" className="h-9 w-full rounded-lg border border-input bg-muted/40 px-2.5 text-sm">
+                        <SelectValue placeholder="City" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cities.filter(c => c.id === cityId).map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="su-role">Role</FieldLabel>
-                    <select id="su-role" value={requestedRole} disabled className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm capitalize">
-                      <option value={requestedRole}>{roleOptions.find(o => o.id === requestedRole)?.label}</option>
-                    </select>
+                    <Select value={requestedRole} disabled>
+                      <SelectTrigger id="su-role" className="h-9 w-full rounded-lg border border-input bg-muted/40 px-2.5 text-sm capitalize">
+                        <SelectValue placeholder="Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={requestedRole}>
+                          {roleOptions.find(o => o.id === requestedRole)?.label}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </Field>
                 </div>
 

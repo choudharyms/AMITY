@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { categoryLabels, type Category, type PilotData } from '@/src/types'
 import { apiRequest, createDonation } from '@/src/api'
@@ -159,9 +160,18 @@ export function DonationForm({ open, data, cityId, refresh, onClose }: { open: b
       </Field>
 
       <Field><FieldLabel htmlFor="donor">Posting donor location</FieldLabel>
-        <select id="donor" value={donorId} onChange={e => setDonorId(e.target.value)} required className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm">
-          {donors.map(d => <option key={d.id} value={d.id}>{d.name} — {d.area} {d.license_no ? '✓' : ''}</option>)}
-        </select>
+        <Select value={donorId} onValueChange={(val) => { if (val) setDonorId(val) }}>
+          <SelectTrigger id="donor" className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm">
+            <SelectValue placeholder="Select donor location" />
+          </SelectTrigger>
+          <SelectContent>
+            {donors.map(d => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.name} — {d.area} {d.license_no ? '✓' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
