@@ -328,7 +328,7 @@ export default function App({
       // Unauthenticated — show generic overview
       return (
         <div className="overview-content">
-          <OverviewMetrics data={data} />
+          <OverviewMetrics data={data} onNavigate={setSection} />
           <div className="overview-middle">
             <Suspense fallback={<MapSkeleton />}>
               <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
@@ -353,7 +353,7 @@ export default function App({
     // Coordinator: full ops overview
     return (
       <div className="overview-content">
-        <OverviewMetrics data={data} />
+        <OverviewMetrics data={data} onNavigate={setSection} />
         <div className="overview-middle">
           <Suspense fallback={<MapSkeleton />}>
             <RescueMap data={data} cityId={cityId} expanded={expandedMap} onExpand={() => setExpandedMap(!expandedMap)} selectedDonationId={selected?.id} selectedPointId={focusedMapPointId ?? undefined} />
