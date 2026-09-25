@@ -26,6 +26,7 @@ import { SettingsView } from '@/components/settings-view'
 import { PostDonationView } from '@/components/post-donation-view'
 import { WorkspacesView } from '@/components/workspaces-view'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { PwaInstallButton } from '@/components/pwa-install-button'
 
 // Code-split heavy visualization modules (MapLibre GL and Recharts)
 const RescueMap = lazy(() => import('@/components/rescue-map').then(m => ({ default: m.RescueMap })))
@@ -472,6 +473,7 @@ export default function App({
               <Bell />
               {!!urgent?.length && <span className="notif-dot" />}
             </Button>
+            <PwaInstallButton />
             <button
               className="topbar-account-button group"
               onClick={session ? () => setSection('settings') : openLogin}

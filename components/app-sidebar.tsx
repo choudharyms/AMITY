@@ -31,6 +31,7 @@ import type { Section } from '@/src/types'
 import { cities, type City } from '@/src/cities'
 import type { Session } from '@supabase/supabase-js'
 import type { AccountProfile } from '@/src/use-profile'
+import { PwaInstallButton } from '@/components/pwa-install-button'
 
 // Role-based nav: each role only sees what's relevant to them
 function roleNav(role?: AccountProfile['role']) {
@@ -525,9 +526,16 @@ export function AppSidebar({
               <span>Help & safety guidelines</span>
               <ArrowUpRight size={13} className="ml-auto opacity-70" />
             </button>
+            <div className="pt-1.5">
+              <PwaInstallButton className="w-full justify-center" />
+            </div>
           </div>
         ) : (
           <div className="sidebar-utilities-collapsed">
+            <div className="sidebar-tooltip-wrapper mb-1">
+              <PwaInstallButton variant="icon" />
+              <div className="sidebar-tooltip">Install mobile app</div>
+            </div>
             {onBackToLanding && (
               <div className="sidebar-tooltip-wrapper">
                 <button className="nav-item-collapsed utility-icon-btn" onClick={onBackToLanding} aria-label="Interactive Story">
