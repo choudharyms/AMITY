@@ -127,6 +127,7 @@ export function RegisterPage({
       const metadata: Record<string, string> = {
         display_name: fullName.trim(),
         city_id: cityId,
+        role: selectedRole,
         requested_role: selectedRole,
       }
       if (organization.trim()) metadata.organization = organization.trim()

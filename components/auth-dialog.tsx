@@ -69,6 +69,7 @@ export function AuthDialog({ open, onOpenChange, cityId = 'blr' }: { open: boole
       const metadata: Record<string, string> = {
         display_name: String(form.get('name') || '').trim(),
         city_id: cityId,
+        role: requestedRole,
         requested_role: requestedRole,
       }
       if (form.get('organization')) metadata.organization = String(form.get('organization')).trim()
